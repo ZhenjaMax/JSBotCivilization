@@ -8,7 +8,7 @@ const { getEmbed_NoVoice,
         getEmbed_NotEnoughCivilizations } = require('./embedMessages.js')
 
 function getDraftFFA(playerCount, civilizationsCount, rawBans) {
-    let { civilizations } = require("./data.js");
+    let { civilizations } = require("./config.js");
     civilizationsList = civilizations;
     civilizations = new Map(civilizationsList);
 
@@ -19,7 +19,7 @@ function getDraftFFA(playerCount, civilizationsCount, rawBans) {
     draftList = [];
 
     for(let iter of rawBans)         // Проверка на одинаковые элементы
-        if(bans.indexOf(iter) == -1) // Нет элемента
+        if(bans.indexOf(iter) == -1) // Ещё нет такого элемента
             bans.push(iter);
     rawBans = bans;
     bans = [];

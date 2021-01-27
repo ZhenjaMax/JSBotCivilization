@@ -11,8 +11,9 @@ const { getEmbed_Avatar,
         getEmbed_UnknownError } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
-const { databaseUsers } = require('./database.js');
-const { roleBannedID } = require('./data.js')
+const { getUserdata,
+        updateUserdataBanned } = require('./database.js');
+const { roleBannedID } = require('./config.js')
 
 function draft(robot, message, args) {
     draftFFA(robot, message, args);
@@ -43,11 +44,11 @@ function dice(robot, message, args){
 async function profile(robot, message, args) {
     user = message.mentions.users.first() || message.author;
     author = message.author;
-    userData = await databaseUsers.findOne({ where: { userid: user.id } });
+    userData = await getUserdata(user.id);
     if (userData)
         return message.channel.send(getEmbed_Profile(user, userData, author));
     try {
-        const registration = await databaseUsers.create({userid: user.id});
+        const registration = await createUserdata(user.id);
         return message.channel.send(getEmbed_Register(user));
     } catch (errorDB) {
         return message.channel.send(getEmbed_UnknownError("errorDB"));
@@ -77,16 +78,16 @@ async function ban(robot, message, args){
     if(!user)
         return message.channel.send(getEmbed_Error("Укажите пользователя для бана."));
     try{
-        userdata = await databaseUsers.findOne({ where: { userid: user.id } });
+        userdata = await getUserdata(user.id);
         if(!userdata)
             return message.channel.send(getEmbed_Error("Пользователь не зарегистрирован!"));
         if(userdata.banned)
             return message.channel.send(getEmbed_Error("Пользователь уже имеет бан! Чтобы снять, используйте !unban"));
         roleBanned = await message.guild.roles.cache.get(roleBannedID);
         await user.roles.add(roleBanned);
-        await databaseUsers.update({ banned: 1 }, { where: { userid: user.id } });
+        await updateUserdataBanned(user.id, 1);
         return await message.channel.send("Забанен!");
-    } catch {
+    } catch (errorBan) {
         return message.channel.send(getEmbed_UnknownError("errorBan"));
     }
 }
@@ -96,14 +97,14 @@ async function unban(robot, message, args){
     if(!user)
         return message.channel.send(getEmbed_Error("Укажите пользователя для бана."));
     try{
-        userdata = await databaseUsers.findOne({ where: { userid: user.id } });
+        userdata = await getUserdata(user.id);
         if(!userdata)
             return message.channel.send(getEmbed_Error("Пользователь не зарегистрирован!"));
         if(!userdata.banned)
             return message.channel.send(getEmbed_Error("Пользователь не имеет бана."));
         roleBanned = await message.guild.roles.cache.get(roleBannedID);
         await user.roles.remove(roleBanned);
-        await databaseUsers.update({ banned: 0 }, { where: { userid: user.id } });
+        await updateUserdataBanned(user.id, 0);
         return await message.channel.send("Разбанен!");
     } catch (errorUnban) {
         return message.channel.send(getEmbed_UnknownError("errorUnban"));

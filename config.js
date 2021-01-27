@@ -2,7 +2,7 @@ const civilizations = new Map([
   ["<:australia:701066628523098183>", "Австралия <:Australia:701066628523098183> Джон Кэртин"],
   ["<:america:701066550412836894>",   "Америка <:America:701066550412836894> Теодор Рузвельт"],
   ["<:englandv:701066628489674772>",  "Англия <:EnglandV:701066628489674772> Виктория"],
-  ["<:englandv:701066628489674772>", "Англия <:EnglandV:701066628489674772> Алиенора Аквитанская"],
+  ["<:englandv:701066628489674772>",  "Англия <:EnglandV:701066628489674772> Алиенора Аквитанская"],
   ["<:arabia:701066550442065970>",    "Аравия <:Arabia:701066550442065970> Саладин"],
   ["<:aztecs:701066550169436302>",    "Ацтеки <:Aztecs:701066550169436302> Монтесума"],
   ["<:brazil:701066699537121281>",    "Бразилия <:Brazil:701066699537121281> Педру II"],
@@ -54,7 +54,6 @@ const civilizations = new Map([
   ["<:gaul:759396911206629386>",      "Галлия <:Gaul:759396911206629386> Амбиорикс"],
   ["<:babylon:779706266062815242>",   "Вавилон <:Babylon:779706266062815242> Хаммурапи"]
 ]);
-
 //["K<:China:701066550433677382>",    "Китай <:China:701066550433677382> Хубилай"],
 //["K<:Mongolia:701066699482464276>", "Монголия <:Mongolia:701066699482464276> Хубилай"],
 //["", "Вьетнам - Госпожа Чьеу"]
@@ -64,7 +63,8 @@ const roleBannedID = '802947135129649193';
 const roleAdministratorID = '698297099367874620';
 const roleModeratorID = '699003139105488936';
 const roleSupportID = '803537817497501716';
-
+const token = "Nzk1MjkyMDgyMTg0NjUwODEz.X_HPeA.csGWrrzrNMdB6ug6d76I9dVtDvI";
+const prefix = "!";
 
 module.exports = {
   civilizations, 
@@ -72,5 +72,7 @@ module.exports = {
   roleBannedID,
   roleAdministratorID,
   roleModeratorID,
-  roleSupportID
+  roleSupportID,
+  token,
+  prefix
 }

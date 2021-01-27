@@ -21,4 +21,27 @@ const databaseUsers = database.define('users', {    // Здесь и далее 
 	karma: 			{ type: Sequelize.INTEGER, 	defaultValue: 50,			allowNull: false },
 });
 
-module.exports = { database, databaseUsers }
+async function getUserdata(userID){
+	return await databaseUsers.findOne({ where: { userid: userID } });
+}
+
+async function createUserdata(userID){
+	return await databaseUsers.create({userid: user.id});
+}
+
+async function updateUserdataBanned(userID, bannedStatus){
+	await databaseUsers.update({ banned: bannedStatus }, { where: { userid: userID } });
+}
+
+function syncDatabase(){
+	databaseUsers.sync();
+}
+
+module.exports = { 
+	database, 
+	databaseUsers,
+	getUserdata,
+	createUserdata,
+	syncDatabase,
+	updateUserdataBanned
+}
