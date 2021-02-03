@@ -1,4 +1,4 @@
-const { draftFFA } =       require('./draft.js');
+const { draftFFA } = require('./draft.js');
 const { getEmbed_Avatar,
         getEmbed_Heads, 
         getEmbed_Tails,
@@ -6,14 +6,24 @@ const { getEmbed_Avatar,
         getEmbed_WrongNumber,
         getEmbed_Clear,
         getEmbed_Profile,
-        getEmbed_Register,
         getEmbed_Error,
-        getEmbed_UnknownError } = require('./embedMessages.js');
+        getEmbed_UnknownError,
+        getEmbed_LikeOrDislike } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
 const { getUserdata,
-        updateUserdataBanned } = require('./database.js');
-const { roleBannedID } = require('./config.js')
+        hasPermissionLevel,
+        updateUserdataKarma,
+        updateUserdataLikeIncrement,
+        updateUserdataDislikeIncrement, } = require('./database.js');
+const { ratingHandler } = require('./rating.js');
+const { banAdm,
+        unbanAdm,
+        muteAdm,
+        unmuteAdm,
+        nochatAdm,
+        unchatAdm,
+        pardonAdm } = require('./administration.js');
 
 function draft(robot, message, args) {
     draftFFA(robot, message, args);
@@ -44,18 +54,16 @@ function dice(robot, message, args){
 async function profile(robot, message, args) {
     user = message.mentions.users.first() || message.author;
     author = message.author;
-    userData = await getUserdata(user.id);
-    if (userData)
+    try{
+        userData = await getUserdata(user.id);
         return message.channel.send(getEmbed_Profile(user, userData, author));
-    try {
-        const registration = await createUserdata(user.id);
-        return message.channel.send(getEmbed_Register(user));
-    } catch (errorDB) {
-        return message.channel.send(getEmbed_UnknownError("errorDB"));
+    } catch (errorProfile) {
+        return message.channel.send(getEmbed_UnknownError("errorProfile"));
     }
 }
 
 async function clear(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
     deleteCountMin = 1;
     deleteCountMax = 10;
     deleteCount = parseInteger(args[0]);
@@ -70,49 +78,89 @@ async function clear(robot, message, args){
     }
 }
 
-async function test(robot, message, args){
-}
-
 async function ban(robot, message, args){
-    user = message.mentions.members.first();
-    if(!user)
-        return message.channel.send(getEmbed_Error("Укажите пользователя для бана."));
-    try{
-        userdata = await getUserdata(user.id);
-        if(!userdata)
-            return message.channel.send(getEmbed_Error("Пользователь не зарегистрирован!"));
-        if(userdata.banned)
-            return message.channel.send(getEmbed_Error("Пользователь уже имеет бан! Чтобы снять, используйте !unban"));
-        roleBanned = await message.guild.roles.cache.get(roleBannedID);
-        await user.roles.add(roleBanned);
-        await updateUserdataBanned(user.id, 1);
-        return await message.channel.send("Забанен!");
-    } catch (errorBan) {
-        return message.channel.send(getEmbed_UnknownError("errorBan"));
-    }
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    banAdm(robot, message, args);
 }
 
 async function unban(robot, message, args){
-    user = message.mentions.members.first();
-    if(!user)
-        return message.channel.send(getEmbed_Error("Укажите пользователя для бана."));
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    unbanAdm(robot, message, args);
+}
+
+async function mute(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    muteAdm(robot, message, args);
+}
+
+async function unmute(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    unmuteAdm(robot, message, args);
+}
+
+async function nochat(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    nochatAdm(robot, message, args);
+}
+
+async function unchat(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    unchatAdm(robot, message, args);
+}
+
+async function pardon(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    pardonAdm(robot, message, args);
+}
+
+function rating(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    ratingHandler(robot, message, args);
+}
+
+async function like(robot, message, args){
     try{
-        userdata = await getUserdata(user.id);
-        if(!userdata)
-            return message.channel.send(getEmbed_Error("Пользователь не зарегистрирован!"));
-        if(!userdata.banned)
-            return message.channel.send(getEmbed_Error("Пользователь не имеет бана."));
-        roleBanned = await message.guild.roles.cache.get(roleBannedID);
-        await user.roles.remove(roleBanned);
-        await updateUserdataBanned(user.id, 0);
-        return await message.channel.send("Разбанен!");
-    } catch (errorUnban) {
-        return message.channel.send(getEmbed_UnknownError("errorUnban"));
+        user = message.mentions.users.first();
+        if(!user)
+            return message.channel.send(getEmbed_Error("Укажите пользователя для лайка."));
+        author = message.author;
+        if(author.id == user.id) 
+            return message.channel.send(getEmbed_Error("Нельзя лайкнуть самого себя!"));
+        userData = await getUserdata(user.id);
+        karma = userData.karma;
+        await updateUserdataKarma(userData.userid, Math.min(karma+1, 100));
+        await updateUserdataLikeIncrement(user.id);
+        userData = await getUserdata(user.id);
+        return message.channel.send(getEmbed_LikeOrDislike(author, user, userData, 1));
+    } catch (errorLike) {
+        return message.channel.send(getEmbed_UnknownError("errorLike"));
     }
 }
 
-// Список комманд //
-var commands = 
+async function dislike(robot, message, args){
+    try{
+        user = message.mentions.users.first();
+        if(!user)
+            return message.channel.send(getEmbed_Error("Укажите пользователя для дизлайка."));
+        author = message.author;
+        if(author.id == user.id) 
+            return message.channel.send(getEmbed_Error("Нельзя дизлайкнуть самого себя!"));
+        userData = await getUserdata(user.id);
+        karma = userData.karma;
+        await updateUserdataKarma(userData.userid, Math.max(karma-1, 0));
+        await updateUserdataDislikeIncrement(user.id);
+        userData = await getUserdata(user.id);
+        return message.channel.send(getEmbed_LikeOrDislike(author, user, userData, -1));
+    } catch (errorDislike) {
+        return message.channel.send(getEmbed_UnknownError("errorDislike"));
+    }
+}
+
+async function test(robot, message, args){
+    
+}
+
+var commands = // Список комманд
 [
     {
         name: ["draft", "draftffa"],
@@ -145,9 +193,9 @@ var commands =
         about: "Удалить последние сообщения (до 10)"
     },
     {
-        name: ["test"],
-        out: test,
-        about: "Тестовая команда"
+        name: ["rating", "r"],
+        out: rating,
+        about: "Интерфейс для начисления рейтинга"
     },
     {
         name: ["ban"],
@@ -159,6 +207,46 @@ var commands =
         out: unban,
         about: "Снять бан"
     },
+    {
+        name: ["mute"],
+        out: mute,
+        about: "Заглушить микрофон игрока"
+    },
+    {
+        name: ["unmute"],
+        out: unmute,
+        about: "Разблокировать микрофон игрока"
+    },
+    {
+        name: ["nochat"],
+        out: nochat,
+        about: "Заблокировать чат игрока"
+    },
+    {
+        name: ["unchat"],
+        out: unchat,
+        about: "Разблокировать чат игрока"
+    },
+    {
+        name: ["pardon"],
+        out: pardon,
+        about: "Полностью разблокировать игрока"
+    },
+    {
+        name: ["like"],
+        out: like,
+        about: "Похвалить игрока, повысить карму"
+    },
+    {
+        name: ["dislike", "report"],
+        out: dislike,
+        about: "Поругать игрока, понизить карму"
+    },
+    {
+        name: ["test"],
+        out: test,
+        about: "Тестовая команда"
+    }
 ]
 
 module.exports = commands;

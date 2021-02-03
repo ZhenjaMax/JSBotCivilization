@@ -35,12 +35,51 @@ function parseInteger(str){
         return undefined;
     regexp = /^-?(\d+)$/gm;
     match = Array.from(str.matchAll(regexp));
-    return match.length == 1 ? match[0][0] : NaN;
+    return match.length == 1 ? parseInt(match[0][0]) : NaN;
+}
+
+function parsePlayers(str){
+    if(str == undefined)
+        return [];
+    regexp = /(<@!\d+>)+/g;
+    return Array.from(str.matchAll(regexp)).map(function (regexElement) {return regexElement[0].slice(3, -1)});
+}
+
+function parseNumberRule(str){
+    if(str == undefined)
+        return undefined;
+    regexp = /^(\d+)\.(\d+)$/gm;
+    match = Array.from(str.matchAll(regexp));
+    return match.length == 1 ? match[0][0] : undefined;
+}
+
+function parseDuration(str){
+    if(str == undefined)
+        return undefined;
+    regexp = /^(\d+)([smhdy])$/gm;
+    match = Array.from(str.matchAll(regexp));
+    return match.length == 1 ? [match[0][1], match[0][2]] : undefined;
+}
+
+const typeofTime = new Map([
+    ["s", 1],
+    ["m", 60],
+    ["h", 60*60],
+    ["d", 60*60*24],
+    ["y", 60*60*24*365]
+]);
+
+function getTimeInSeconds(value, typeSymbol){
+    return value * typeofTime.get(typeSymbol);
 }
 
 module.exports = { 
     getRandomHexBrightString, 
     randomInteger, 
     String, 
-    parseInteger
+    parseInteger,
+    parsePlayers,
+    parseNumberRule,
+    parseDuration,
+    getTimeInSeconds
 }
