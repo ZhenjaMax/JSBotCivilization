@@ -64,8 +64,10 @@ bot.on("guildMemberAdd", async (member) => {
                 await member.roles.add(roleMutedChat);
                 isViolation = true;
             }
-            if(isViolation) return;
-            else return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
+            if(isViolation)
+                return;
+            else
+                return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
         } else {
             return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
         }
@@ -74,16 +76,16 @@ bot.on("guildMemberAdd", async (member) => {
     }
 });
 
-bot.on('message', async (msg) => {
-    if (msg.author.bot || (msg.guild == null) || !msg.content.startsWith(prefix))
+bot.on('message', async (message) => {
+    if (message.author.bot || (message.guild == null) || !message.content.startsWith(prefix))
         return;
-    args = msg.content.trim().toLowerCase().split(" ");
+    args = message.content.trim().toLowerCase().split(" ");
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))
             try{
-                await msg.delete();
-                return commands[i].out(bot, msg, args);
+                await commands[i].out(bot, message, args);
+                await message.delete();
             } catch (errorOnMessage) {
                 return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
             }

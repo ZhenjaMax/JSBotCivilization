@@ -58,7 +58,7 @@ const civilizations = new Map([
   ["<:babylon:779706266062815242>",   "Вавилон <:Babylon:779706266062815242> Хаммурапи"],
   ["k<:china:701066550433677382>",    "Китай <:China:701066550433677382> Хубилай"],
   ["k<:mongolia:701066699482464276>", "Монголия <:Mongolia:701066699482464276> Хубилай"],
-  [":vietnam:804417073140334603", "Вьетнам <:Vietnam:804417073140334603> Госпожа Чьеу"]
+  ["<:vietnam:804417073140334603>", "Вьетнам <:Vietnam:804417073140334603> Госпожа Чьеу"]
 ]);
 
 const guildID = '663144077818331186';
@@ -73,7 +73,7 @@ const roleBannedID = '700353744226746408';
 const roleMutedChatID = '700354723236282370';
 const roleMutedVoiceID = '700355053269155963';
 
-const token = "Nzk1MjkyMDgyMTg0NjUwODEz.X_HPeA.csGWrrzrNMdB6ug6d76I9dVtDvI";
+const token = "Nzk1MjkyMDgyMTg0NjUwODEz.X_HPeA.fq7JiC9-b2uZs3lEsn70ataVV1o";
 const prefix = "!";
 const bot = new Discord.Client();
 

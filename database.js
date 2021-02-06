@@ -14,14 +14,22 @@ const { bot,
 		roleSupportID,
 		roleBannedID,
 		ownerID } = require('./config.js');
-const 	database = new Sequelize('database', 'user', 'password', {
+
+
+const database = new Sequelize('database', 'user', 'password', {
 	host: 		'localhost',
 	dialect: 	'sqlite',
 	logging: 	false,
-	storage: 	'./database.sqlite', 	//SQLite only
+	storage: 	'./database.sqlite',
 });
 
-const databaseUsers = database.define('users', {    // Здесь и далее содержится описание базы данных
+
+// DataGeneral
+// DataTimings
+// DataClans
+// DataAchivements
+
+const databaseUsers = database.define('users', {
     userid: 		{ type: Sequelize.STRING, 	unique: true },
 	description: 	{ type: Sequelize.TEXT },
 	registration:	{ type: Sequelize.DATE, 	defaultValue: new Date() },
@@ -43,6 +51,7 @@ const databaseUsers = database.define('users', {    // Здесь и далее 
 
 	achievements: 	{ type: Sequelize.STRING, 	defaultValue: '000000', 	allowNull: false },
 });
+
 
 async function getUserdata(userID){
 	try{

@@ -15,7 +15,7 @@ function getDraftFFA(playerCount, civilizationsCount, rawBans) {
     const errorValue = [[], [], []];
 
     bans = [];
-    bansError = [];
+    errors = [];
     draftList = [];
 
     for(let iter of rawBans)         // Проверка на одинаковые элементы
@@ -27,7 +27,7 @@ function getDraftFFA(playerCount, civilizationsCount, rawBans) {
         if(civilizations.has(iter))
             bans.push(civilizations.get(iter));
         else if((iter != undefined) && (iter.trim() != ""))
-            bansError.push(iter);
+            errors.push(iter);
         civilizations.delete(iter); // Если элемента не было, то всё ОК
     }
 
@@ -45,45 +45,48 @@ function getDraftFFA(playerCount, civilizationsCount, rawBans) {
         }
         draftList.push(draft.sort());
     }
-    return [draftList, bans, bansError];
+    return [draftList, bans, errors];
 }
 
 function draftFFA(robot, message, args) {
+    civilizationsCountMin = 1;
+    civilizationsCountMax = 16;
+    civilizationsCountDefault = 3;
+    civilizationsCount = args[0];
+    rawBans = args.slice(1);
+    draftList = []; bans = []; errors = [];
+    bansString = ""; valueField = ""; authorField = "";
+    userBotsCount = 0;
+
     voiceChannel = message.member.voice.channel;
     if(voiceChannel == null)
         return message.channel.send(getEmbed_NoVoice());
 
-    civilizationsCount = args[0];
-    rawBans = args.slice(1);
-    draftList = [];
-    bans = [];
-    bansError = [];
-    bansString = "";
-    valueField = "";
-    inlineField = "\u200b"
-    authorField = "";
-    users =  message.member.voice.channel.members;
-    userID = users.keyArray();
+    users =  message.member.voice.channel.members;          // Особый тип данных
     usernames = users.map(member => member.user.tag);
-
+    userID = users.keyArray();
+    for(let i = 0; i < userID.length; i++)
+        if(message.guild.members.cache.get(userID[i]).user.bot){
+            usernames.splice(i, 1);
+            userID.splice(i, 1);
+            userBotsCount++;
+        }
     playerCount = userID.length;
 
     civilizationCountParse = parseInteger(civilizationsCount);
     if(isNaN(civilizationCountParse) || (civilizationCountParse == undefined)){
         if(isNaN(civilizationCountParse))
             rawBans.push(civilizationsCount);
-        civilizationsCount = 3;
+        civilizationsCount = civilizationsCountDefault;
     }
-    civilizationsCountMin = 1;
-    civilizationsCountMax = 16;
     if((civilizationsCount < civilizationsCountMin) || (civilizationsCount > civilizationsCountMax))
         return message.channel.send(getEmbed_WrongNumber(civilizationsCountMin, civilizationsCountMax));
-
-    [draftList, bans, bansError] = getDraftFFA(playerCount, civilizationsCount, rawBans);
-    bans = bans.sort();
-    bansError = bansError.sort();
+    [draftList, bans, errors] = getDraftFFA(playerCount, civilizationsCount, rawBans);
     if(draftList.length == 0)
         return message.channel.send(getEmbed_NotEnoughCivilizations());
+
+    bans = bans.sort();
+    errors = errors.sort();
     authorField = playerCount == 1 ? "Драфт FFA для 1 игрока" : "Драфт FFA для {0} игроков".format(playerCount);
     const embedMsg = new Discord.MessageEmbed()
         .setColor(getRandomHexBrightString())
@@ -95,19 +98,24 @@ function draftFFA(robot, message, args) {
             bansString += (ban + "\n");
         bansString += "\u200B";
     }
-    if(bansError.length != 0){
-        bansString += "⚠️ **Список ошибок ({0}):**\n".format(bansError.length);
-        for(ban of bansError)
+    if(errors.length != 0){
+        bansString += "⚠️ **Список ошибок ({0}):**\n".format(errors.length);
+        for(ban of errors)
             bansString += (ban + ", ");
-        bansString = bansString.slice(0, -2) + "\u200B";
+        bansString = bansString.slice(0, -2) + "\n";
     }
+    if(userBotsCount != 0)
+        bansString += "🤖 **В канале {0} {1} {2}.**\nБоты были удалены из драфта."
+            .format(userBotsCount == 1 ? "присутствует" : "присутствуют", 
+                    userBotsCount,
+                    userBotsCount == 1 ? "бот" : "бота");
     embedMsg.setDescription(bansString);
 
     for(let i = 0; i < playerCount; i++){
         valueField = "**{0}** (<@{1}>)".format(usernames[i], userID[i]);
         for(let j = 0; j < civilizationsCount; j++)
             valueField += "\n{0}".format(draftList[i][j]);
-        embedMsg.addField(inlineField, valueField);
+        embedMsg.addField("\u200b", valueField);
     }
     embedMsg
         .setTimestamp()
