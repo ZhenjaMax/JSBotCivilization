@@ -1,8 +1,3 @@
-//## npm install node-schedule
-//## npm install discord.js
-//## npm install sqlite3
-//## npm install --save sequelize
-
 const   commands = require("./commands.js");
 const { chatChannelID,
         roleBannedID,
@@ -12,12 +7,14 @@ const { chatChannelID,
         token,
         prefix,
         bot,
-        schedule } = require('./config.js');
-const { getUserdata,
-        syncDatabase,
+        schedule,
+        botChannelID } = require('./config.js');
+const { syncDatabase,
+        checkUserSilent,
         getAllUserdataBanned,
         getAllUserdataMuted,
-        getAllUserdataNoChat } = require('./database.js');
+        getAllUserdataNoChat,
+        hasPermissionLevel } = require('./database.js');
 const { getEmbed_Ready,
         getEmbed_MemberAdd,
         getEmbed_UnknownError } = require('./embedMessages.js');
@@ -28,8 +25,7 @@ administrationJobs = [];
 
 bot.on("ready", async () => {
     syncDatabase();
-    console.log(bot.user.username + " запустился!");
-    bot.channels.cache.get(chatChannelID).send(getEmbed_Ready());
+    bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
 
     usersBanned = await getAllUserdataBanned();
     for(userdata of usersBanned)
@@ -42,12 +38,14 @@ bot.on("ready", async () => {
     usersNochat = await getAllUserdataNoChat();
     for(userdata of usersNochat)
         administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
+    
+    console.log(bot.user.username + " запустился!");
 });
 
 bot.on("guildMemberAdd", async (member) => {
     try{
         let isViolation = false;
-        userdata = await getUserdata(member.user.id);
+        userdata = await checkUserSilent(member.user.id);
         if(userdata){
             if(userdata.banned){
                 roleBanned = member.guild.roles.cache.get(roleBannedID);
@@ -64,10 +62,9 @@ bot.on("guildMemberAdd", async (member) => {
                 await member.roles.add(roleMutedChat);
                 isViolation = true;
             }
-            if(isViolation)
-                return;
-            else
+            if(!isViolation)
                 return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
+            return;
         } else {
             return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
         }
@@ -79,13 +76,17 @@ bot.on("guildMemberAdd", async (member) => {
 bot.on('message', async (message) => {
     if (message.author.bot || (message.guild == null) || !message.content.startsWith(prefix))
         return;
+    if (message.channel.id != botChannelID)
+        if(!hasPermissionLevel(message.member, 2))
+            return;
     args = message.content.trim().toLowerCase().split(" ");
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))
             try{
                 await commands[i].out(bot, message, args);
-                await message.delete();
+                if(!(command == "clean" || command == "clear"))
+                    await message.delete();
             } catch (errorOnMessage) {
                 return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
             }
