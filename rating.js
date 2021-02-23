@@ -5,6 +5,11 @@ const { getUserdata,
 const { getEmbed_Error,
         getEmbed_RatingSingleChange,
         getEmbed_UnknownError } = require('./embedMessages.js');
+const { roleRanksID,
+        roleRanksValue,
+        bot,
+        guildID } = require('./config.js');
+
 
 async function ratingHandler(robot, message, args){
     try{
@@ -52,8 +57,30 @@ async function ratingHandler(robot, message, args){
             default:
                 return message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\ncc, mult, team, set, add/change, cancel."));
         }
+        if(playersID.length > 0)
+            updateUsersRatingRole(playersID);
     } catch (errorRatingHandler){
         message.channel.send(getEmbed_UnknownError("errorRatingHandler"));
+    }
+}
+
+async function updateUsersRatingRole(playersID){
+    for(iterID of playersID){
+        userdata = await getUserdata(iterID);
+        iterRating = userdata.rating;
+        let index = 0;
+        for(index; index < roleRanksValue.length; index++)
+            if (iterRating < roleRanksValue[index])
+                break;
+        let iterRoleID = roleRanksID[index];
+        memberIter = bot.guilds.cache.get(guildID).members.cache.get(iterID);
+        if(memberIter.roles.has(iterRoleID))
+            return;
+        for(i of roleRanksID)
+            if(memberIter.roles.has(roleRanksID[i])){
+                //member.roles.remove()
+                break;
+            }
     }
 }
 
@@ -61,7 +88,7 @@ function countRatingEloPair(ratingA, ratingB, M){      // A побеждает B
     d = 400;
     K = 30;
     S = 1;  // Победа (ничьи пока что нет)
-    E = 1/(1+ Math.pow(10, (ratingB - ratingA)/400));
+    E = 1/(1 + Math.pow(10, (ratingB - ratingA)/400));
     RA = Math.round(M*K*(S-E));
     return [RA, -RA];
 }

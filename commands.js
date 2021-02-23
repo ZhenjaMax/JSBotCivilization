@@ -1,4 +1,5 @@
-const { draftFFA } = require('./draft.js');
+const { draftFFA,
+        draftTeam } = require('./draft.js');
 const { getEmbed_Avatar,
         getEmbed_Heads, 
         getEmbed_Tails,
@@ -8,14 +9,26 @@ const { getEmbed_Avatar,
         getEmbed_Profile,
         getEmbed_Error,
         getEmbed_UnknownError,
-        getEmbed_LikeOrDislike } = require('./embedMessages.js');
+        getEmbed_LikeOrDislike,
+        getEmbed_Welcome1,
+        getEmbed_Welcome2,
+        getEmbed_Welcome3,
+        getEmbed_Vote,
+        getEmbed_Irrel,
+        getEmbed_CC,
+        getEmbed_Scrap,
+        getEmbed_Veto,
+        getEmbed_Remap,
+        getEmbed_Test } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
 const { getUserdata,
         hasPermissionLevel,
         updateUserdataKarma,
         updateUserdataLikeIncrement,
-        updateUserdataDislikeIncrement, } = require('./database.js');
+        updateUserdataLikeCooldown,
+        updateUserdataDislikeIncrement,
+        updateUserdataDislikeCooldown } = require('./database.js');
 const { ratingHandler } = require('./rating.js');
 const { banAdm,
         unbanAdm,
@@ -26,7 +39,16 @@ const { banAdm,
         pardonAdm } = require('./administration.js');
 
 function draft(robot, message, args) {
-    draftFFA(robot, message, args);
+    if(args[0] == "ffa"){
+        args.splice(0, 1);
+        draftFFA(robot, message, args);
+    }
+    else if(args[0] == "team"){
+        args.splice(0, 1)
+        draftTeam(robot, message, args);
+    }
+    else
+        draftFFA(robot, message, args);
 }
 
 function avatar(robot, message, args) {
@@ -70,7 +92,7 @@ async function clear(robot, message, args){
     if((isNaN(deleteCount)) || (deleteCount == undefined) || (deleteCount < deleteCountMin) || (deleteCount > deleteCountMax))
         return message.channel.send(getEmbed_WrongNumber(deleteCountMin, deleteCountMax));
     try {
-        let fetched = await message.channel.messages.fetch({limit: deleteCount});
+        let fetched = await message.channel.messages.fetch({limit: deleteCount+1});
         await message.channel.bulkDelete(fetched)
         await message.channel.send(getEmbed_Clear(deleteCount));
     } catch (errorClear) {
@@ -120,6 +142,14 @@ function rating(robot, message, args){
 
 async function like(robot, message, args){
     try{
+        authorID = message.author.id;
+        authorData = await getUserdata(authorID);
+        likeDate = authorData.likeCooldown;
+        currentDate = new Date();
+        if(likeDate)    //
+            if((likeDate.getDate() == currentDate.getDate()) && (likeDate.getMonth() == currentDate.getMonth()))
+                return message.channel.send(getEmbed_Error("Попробуйте завтра."));
+
         user = message.mentions.users.first();
         if(!user)
             return message.channel.send(getEmbed_Error("Укажите пользователя для лайка."));
@@ -130,6 +160,7 @@ async function like(robot, message, args){
         karma = userData.karma;
         await updateUserdataKarma(userData.userid, Math.min(karma+1, 100));
         await updateUserdataLikeIncrement(user.id);
+        await updateUserdataLikeCooldown(authorID);
         userData = await getUserdata(user.id);
         return message.channel.send(getEmbed_LikeOrDislike(author, user, userData, 1));
     } catch (errorLike) {
@@ -139,6 +170,14 @@ async function like(robot, message, args){
 
 async function dislike(robot, message, args){
     try{
+        authorID = message.author.id;
+        authorData = await getUserdata(authorID);
+        dislikeDate = authorData.dislikeCooldown;
+        currentDate = new Date();
+        if(dislikeDate)    //
+            if((dislikeDate.getDate() == currentDate.getDate()) && (dislikeDate.getMonth() == currentDate.getMonth()))
+                return message.channel.send(getEmbed_Error("Попробуйте завтра."));
+
         user = message.mentions.users.first();
         if(!user)
             return message.channel.send(getEmbed_Error("Укажите пользователя для дизлайка."));
@@ -149,6 +188,7 @@ async function dislike(robot, message, args){
         karma = userData.karma;
         await updateUserdataKarma(userData.userid, Math.max(karma-1, 0));
         await updateUserdataDislikeIncrement(user.id);
+        await updateUserdataDislikeCooldown(authorID);
         userData = await getUserdata(user.id);
         return message.channel.send(getEmbed_LikeOrDislike(author, user, userData, -1));
     } catch (errorDislike) {
@@ -156,16 +196,67 @@ async function dislike(robot, message, args){
     }
 }
 
-async function test(robot, message, args){
+async function welcome(robot, message, args){
+    if(!hasPermissionLevel(message.member, 5)) return;
+    await message.channel.send(getEmbed_Welcome1());
+    await message.channel.send(getEmbed_Welcome2());
+    await message.channel.send(getEmbed_Welcome3());
+}
+
+async function vote(robot, message, args){
+    questionString = message.content.slice(6).trim();
+    if(questionString.length == 0)
+        return message.channel.send(getEmbed_Error("Введите вопрос для начала голосования."));
+    voteMessage = await message.channel.send(getEmbed_Vote(message.author, questionString));
+    await voteMessage.react("<:Yes:808418109710794843>");
+    await voteMessage.react("<:No:808418109319938099>");
+}
+
+async function irrel(robot, message, args){
+    message.channel.send(getEmbed_Irrel());
+}
+
+async function cc(robot, message, args){
+    message.channel.send(getEmbed_CC())
+}
+
+async function scrap(robot, message, args){
+    message.channel.send(getEmbed_Scrap())
+}
+
+async function veto(robot, message, args){
+    message.channel.send(getEmbed_Veto())
+}
+
+async function remap(robot, message, args){
+    message.channel.send(getEmbed_Remap())
+}
+
+async function bonus(robot, message, args){
     
 }
 
-var commands = // Список комманд
+async function test(robot, message, args){
+    if(!hasPermissionLevel(message.member, 5)) return;
+    message.channel.send(getEmbed_Test(robot, message, args));
+}
+
+var commands =
 [
     {
-        name: ["draft", "draftffa"],
+        name: ["draft"],
         out: draft,
-        about: "Драфт для FFA"
+        about: "Общая команда для драфта"
+    },
+    {
+        name: ["draftffa"],
+        out: draftFFA,
+        about: "Команда для драфта FFA"
+    },
+    {
+        name: ["draftteam"],
+        out: draftTeam,
+        about: "Команда для драфта Team"
     },
     {
         name: ["avatar"],
@@ -183,7 +274,7 @@ var commands = // Список комманд
         about: "Подбросить игральную кость"
     },
     {
-        name: ["profile", "p"],
+        name: ["profile", "p", "user"],
         out: profile,
         about: "Профиль игрока"
     },
@@ -241,6 +332,46 @@ var commands = // Список комманд
         name: ["dislike", "report"],
         out: dislike,
         about: "Поругать игрока, понизить карму"
+    },
+    {
+        name: ["welcome"],
+        out: welcome,
+        about: "Сообщение в канал Welcome"
+    },
+    {
+        name: ["vote", "poll"],
+        out: vote,
+        about: "Голосование с двумя вариантами ответов (да, нет)"
+    },
+    {
+        name: ["irr", "irrel"],
+        out: irrel,
+        about: "Подсказка об иррелевантности"
+    },
+    {
+        name: ["cc"],
+        out: cc,
+        about: "Подсказка о CC"
+    },
+    {
+        name: ["scrap"],
+        out: scrap,
+        about: "Подсказка о CC"
+    },
+    {
+        name: ["veto"],
+        out: veto,
+        about: "Подсказка о CC"
+    },
+    {
+        name: ["remap"],
+        out: remap,
+        about: "Подсказка о ремапе"
+    },
+    {
+        name: ["daily", "bonus"],
+        out: bonus,
+        about: "Ежедневная награда"
     },
     {
         name: ["test"],

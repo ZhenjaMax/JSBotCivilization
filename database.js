@@ -3,12 +3,9 @@
 // НЕ НУЖНО ВКЛЮЧАТЬ СЮДА ОСТАЛЬНЫЕ ВЗАИМОДЕЙСТВИЯ.
 
 const 	Sequelize = require('sequelize');
-const 	Discord = require('discord.js');
-const { getEmbed_UnknownError,
-		getEmbed_Register } = require('./embedMessages.js');
+const { getEmbed_UnknownError } = require('./embedMessages.js');
 const { bot,
 		chatChannelID,
-		guildID,
 		roleAdministratorID,
 		roleModeratorID,
 		roleSupportID,
@@ -50,12 +47,16 @@ const databaseUsers = database.define('users', {
 	dislikes: 		{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
 
 	achievements: 	{ type: Sequelize.STRING, 	defaultValue: '000000', 	allowNull: false },
+
+	bonusCooldown:	{ type: Sequelize.DATE },
+	likeCooldown:	{ type: Sequelize.DATE },
+	dislikeCooldown:{ type: Sequelize.DATE },
 });
 
 
 async function getUserdata(userID){
 	try{
-		userdata = await databaseUsers.findOne({ where: { userid: userID } });
+		let userdata = await databaseUsers.findOne({ where: { userid: userID } });
 		if(!userdata){
 			await createUserdata(userID);
 			userdata = await databaseUsers.findOne({ where: { userid: userID } });
@@ -66,10 +67,16 @@ async function getUserdata(userID){
 	}
 }
 
-async function createUserdata(userID){
+async function checkUserSilent(userID){
 	try{
-		user = bot.guilds.cache.get(guildID).members.cache.get(userID).user;
-		await bot.channels.cache.get(chatChannelID).send(getEmbed_Register(user));
+		return await databaseUsers.findOne({ where: { userid: userID } });
+	} catch (errorCheckUserSilent){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorCheckUserSilent"));
+	}
+}
+
+async function createUserdata(userID){		// Здесь производится печать
+	try{
 		return await databaseUsers.create({userid: userID});
 	} catch (errorCreateUserdata) {
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorCreateUserdata"));
@@ -80,7 +87,7 @@ async function getAllUserdataBanned(){
 	try{
 		return await databaseUsers.findAll( {where: { banned: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataBanned) {
-		return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataBanned"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataBanned"));
 	}
 }
 
@@ -88,7 +95,7 @@ async function getAllUserdataMuted(){
 	try{
 		return await databaseUsers.findAll( {where: { mutedvoice: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataMuted) {
-		return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetUserdataMuted"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetUserdataMuted"));
 	}
 }
 
@@ -96,13 +103,13 @@ async function getAllUserdataNoChat(){
 	try{
 		return await databaseUsers.findAll( {where: { mutedchat: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataNoChat) {
-		return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataNoChat"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataNoChat"));
 	}
 }
 
 async function updateUserdataBanned(userID, bannedStatus){
 	try{
-		userdata = await getUserdata(userID);
+		let userdata = await getUserdata(userID);
 		if(!userdata)
 			await createUserdata(userID);
 		await databaseUsers.update({ banned: bannedStatus }, { where: { userid: userID } });
@@ -113,7 +120,7 @@ async function updateUserdataBanned(userID, bannedStatus){
 
 async function updateUserdataMuted(userID, mutedStatus){
 	try{
-		userdata = await getUserdata(userID);
+		let userdata = await getUserdata(userID);
 		if(!userdata)
 			await createUserdata(userID);
 		await databaseUsers.update({ mutedvoice: mutedStatus }, { where: { userid: userID } });
@@ -124,7 +131,7 @@ async function updateUserdataMuted(userID, mutedStatus){
 
 async function updateUserdataNochat(userID, nochatStatus){
 	try{
-		userdata = await getUserdata(userID);
+		let userdata = await getUserdata(userID);
 		if(!userdata)
 			await createUserdata(userID);
 		await databaseUsers.update({ mutedchat: nochatStatus }, { where: { userid: userID } });
@@ -135,10 +142,10 @@ async function updateUserdataNochat(userID, nochatStatus){
 
 async function updateUserdataRating(userID, ratingNew){
 	try{
-		userdata = await getUserdata(userID);
-		if (!userdata)
+		let userdata = await getUserdata(userID);
+		if(!userdata)
 			await createUserdata(userID);
-		return await databaseUsers.update({ rating: ratingNew }, { where: { userid: userID } });
+		await databaseUsers.update({ rating: ratingNew }, { where: { userid: userID } });
 	} catch (errorUpdateUserdataRating){
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataRating"));
 	}
@@ -146,10 +153,10 @@ async function updateUserdataRating(userID, ratingNew){
 
 async function updateUserdataKarma(userID, karmaNew){
 	try{
-		userdata = await getUserdata(userID);
-		if (!userdata)
+		let userdata = await getUserdata(userID);
+		if(!userdata)
 			await createUserdata(userID);
-		return await databaseUsers.update({ karma: karmaNew }, { where: { userid: userID } });
+		await databaseUsers.update({ karma: karmaNew }, { where: { userid: userID } });
 	} catch (errorUpdateUserdataKarma){
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataKarma"));
 	}
@@ -157,12 +164,12 @@ async function updateUserdataKarma(userID, karmaNew){
 
 async function updateUserdataLikeIncrement(userID){
 	try{
-		userdata = await getUserdata(userID);
-		if (!userdata){
+		let userdata = await getUserdata(userID);
+		if(!userdata){
 			await createUserdata(userID);
 			userdata = await getUserdata(userID);
 		}
-		return await databaseUsers.update({ likes: userdata.likes+1 }, { where: { userid: userID } });
+		await databaseUsers.update({ likes: userdata.likes+1 }, { where: { userid: userID } });
 	} catch (errorUpdateUserdataLikeIncrement){
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataLikeIncrement"));
 	}
@@ -170,7 +177,7 @@ async function updateUserdataLikeIncrement(userID){
 
 async function updateUserdataDislikeIncrement(userID){
 	try{
-		userdata = await getUserdata(userID);
+		let userdata = await getUserdata(userID);
 		if (!userdata){
 			await createUserdata(userID);
 			userdata = await getUserdata(userID);
@@ -181,8 +188,36 @@ async function updateUserdataDislikeIncrement(userID){
 	}
 }
 
+async function updateUserdataLikeCooldown(userID){
+	try{
+		let userdata = await getUserdata(userID);
+		if (!userdata){
+			await createUserdata(userID);
+			userdata = await getUserdata(userID);
+		}
+		likeDate = new Date();
+		return await databaseUsers.update({ likeCooldown: likeDate }, { where: { userid: userID } });
+	} catch (errorupdateUserdataLikeCooldown){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorupdateUserdataLikeCooldown"));
+	}
+}
+
+async function updateUserdataDislikeCooldown(userID){
+	try{
+		let userdata = await getUserdata(userID);
+		if (!userdata){
+			await createUserdata(userID);
+			userdata = await getUserdata(userID);
+		}
+		dislikeDate = new Date();
+		return await databaseUsers.update({ dislikeCooldown: dislikeDate }, { where: { userid: userID } });
+	} catch (errorupdateUserdataDislikeCooldown){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorupdateUserdataDislikeCooldown"));
+	}
+}
+
 function syncDatabase(){
-	databaseUsers.sync();
+	databaseUsers.sync({ alter: true });
 }
 
 function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
@@ -209,12 +244,16 @@ module.exports = {
 	updateUserdataRating,
 	updateUserdataKarma,
 	updateUserdataLikeIncrement,
+	updateUserdataLikeCooldown,
 	updateUserdataDislikeIncrement,
+	updateUserdataDislikeCooldown,
 
 	updateUserdataBanned,
 	updateUserdataMuted,
 	updateUserdataNochat,
 	getAllUserdataBanned,
 	getAllUserdataMuted,
-	getAllUserdataNoChat
+	getAllUserdataNoChat,
+
+	checkUserSilent
 }
