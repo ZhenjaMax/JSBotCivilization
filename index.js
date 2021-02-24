@@ -85,14 +85,13 @@ bot.on('message', async (message) => {
     if (message.author.bot || (message.guild == null) || !message.content.startsWith(prefix))
         return;
 
-    if(DEBUG)
+    if(DEBUG){
         if(message.channel.id != "716283743047909387")
             return;
+    }
     else{
-        if(message.channel.id == "716283743047909387")
-            return;
         if (message.channel.id != botChannelID)
-            if(!hasPermissionLevel(message.member, 2))
+            if(!hasPermissionLevel(message.member, 2) || (message.channel.id == "716283743047909387"))
                 return;
     }
     args = message.content.trim().toLowerCase().split(" ");
