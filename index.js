@@ -8,7 +8,8 @@ const { chatChannelID,
         prefix,
         bot,
         schedule,
-        botChannelID } = require('./config.js');
+        botChannelID,
+        DEBUG } = require('./config.js');
 const { syncDatabase,
         checkUserSilent,
         getAllUserdataBanned,
@@ -25,6 +26,11 @@ administrationJobs = [];
 
 bot.on("ready", async () => {
     syncDatabase();
+    if(DEBUG){
+        console.log(bot.user.username + " запустился в DEBUG MODE!");
+        return;
+    }
+
     bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
 
     usersBanned = await getAllUserdataBanned();
@@ -44,6 +50,8 @@ bot.on("ready", async () => {
 
 bot.on("guildMemberAdd", async (member) => {
     try{
+        if(DEBUG)
+            return;
         let isViolation = false;
         userdata = await checkUserSilent(member.user.id);
         if(userdata){
@@ -76,9 +84,17 @@ bot.on("guildMemberAdd", async (member) => {
 bot.on('message', async (message) => {
     if (message.author.bot || (message.guild == null) || !message.content.startsWith(prefix))
         return;
-    if (message.channel.id != botChannelID)
-        if(!hasPermissionLevel(message.member, 2))
+
+    if(DEBUG)
+        if(message.channel.id != "716283743047909387")
             return;
+    else{
+        if(message.channel.id == "716283743047909387")
+            return;
+        if (message.channel.id != botChannelID)
+            if(!hasPermissionLevel(message.member, 2))
+                return;
+    }
     args = message.content.trim().toLowerCase().split(" ");
     command = args.shift().slice(1);
     for(i in commands)

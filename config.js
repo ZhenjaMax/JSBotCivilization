@@ -1,3 +1,5 @@
+const DEBUG = 0;
+
 const Discord = require('discord.js');
 const schedule = require('node-schedule');
 
@@ -99,7 +101,11 @@ const roleBannedID = '700353744226746408';
 const roleMutedChatID = '700354723236282370';
 const roleMutedVoiceID = '700355053269155963';
 
-const token = "Nzk1MjkyMDgyMTg0NjUwODEz.X_HPeA.fq7JiC9-b2uZs3lEsn70ataVV1o";
+if(DEBUG)
+  token = "ODE0MDQzOTQ1OTM1MTc1NzIw.YDYHgA.FaZvJTHJdIqia_yjtvaU0wowZCM";
+else
+  token = "Nzk1MjkyMDgyMTg0NjUwODEz.X_HPeA.fq7JiC9-b2uZs3lEsn70ataVV1o";
+
 const prefix = "!";
 const bot = new Discord.Client();
 
@@ -124,5 +130,7 @@ module.exports = {
   token,
   prefix,
   bot,
-  schedule
+  schedule,
+
+  DEBUG
 }
