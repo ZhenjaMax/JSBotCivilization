@@ -250,7 +250,6 @@ async function newgameVoting(robot, message, args){
     newCommandDate = userData.newCooldown;
     if(newCommandDate){
         currentDate = new Date();
-        console.log((currentDate.getTime() - newCommandDate.getTime())/1000);
         if((currentDate.getTime() - newCommandDate.getTime())/1000 < 150)
             return;
     }
