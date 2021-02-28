@@ -98,13 +98,15 @@ bot.on('message', async (message) => {
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))
-            try{
+            //try
+            {
                 await commands[i].out(bot, message, args);
                 if(!(command == "clean" || command == "clear"))
                     await message.delete();
-            } catch (errorOnMessage) {
-                return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
             }
+            //catch (errorOnMessage) {
+            //    return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
+            //}
 });
 
 bot.login(token);

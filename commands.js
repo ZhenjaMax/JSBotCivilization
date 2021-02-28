@@ -8,6 +8,7 @@ const { getEmbed_Avatar,
         getEmbed_Clear,
         getEmbed_Profile,
         getEmbed_Error,
+        getEmbed_NoVoice,
         getEmbed_UnknownError,
         getEmbed_LikeOrDislike,
         getEmbed_Welcome1,
@@ -37,6 +38,8 @@ const { banAdm,
         nochatAdm,
         unchatAdm,
         pardonAdm } = require('./administration.js');
+const { String } = require('./functions.js');
+const { civilizations } = require('./config.js');
 
 function draft(robot, message, args) {
     if(args[0] == "ffa"){
@@ -236,9 +239,184 @@ async function bonus(robot, message, args){
     
 }
 
+async function newgameVoting(robot, message, args){
+    voiceChannel = message.member.voice.channel;
+    if(voiceChannel == null)
+        return message.channel.send(getEmbed_NoVoice());
+
+    users =  message.member.voice.channel.members;
+    usersID = users.keyArray();
+    for(let i = 0; i < usersID.length; i++)
+        if(message.guild.members.cache.get(usersID[i]).user.bot)
+            usersID.splice(i, 1);
+    usersCount = usersID.length;
+
+    messageBeginContentStart = [
+        `📌 __**Голосование за настройки игровой карты и правила игры**__ 📌
+        *Не забудьте перед игрой ознакомиться с правилами в канале* <#795264927974555651>.`,
+        
+        `👥 __**Участники игры ({0})**__:`.format(usersCount),
+        `⚡__**Игроки, которые не проголосовали**__:`,      // 2
+        `================================`
+    ];
+    messageBeginContentMid = [
+        `__**Карта**__: `,
+        `__**Возраст мира**__: `,
+        `__**Стихийные бедствия**__: `,
+        `__**Бонусные ресурсы**__: `,
+        `__**Стратегические ресурсы**__: `,
+        `__**Торговля золотом**__: `,
+        `__**Торговля стратегическими ресурсами**__: `,
+        `__**Максимальное количество одновременных дружб и союзов в сумме**__: `,
+        `__**Военный союз**__: `,
+        `__**Баны наций**__: *добавьте эмодзи нации под этим сообщением; если проголосует большинство, то нация окажется в бане.*`,     // 9
+
+        `================================
+        ⏰  **На голосование отводится 120 секунд!**
+        📌  **Если вы готовы, нажмите эмодзи ниже.**`                                                                                   // 10
+    ];
+    messageContentListVotesLength = messageBeginContentMid.length;
+    possibleResults = [
+        ["🇵 Пангея", "🇭 Нагорье", "7️⃣  Семь морей", "🇱  Озёра", "🇨 Континенты", "🇦 Архипелаги"],
+        ["🏕️  Стандартный", "🏔️ Новый"],
+        ["2️⃣", "3️⃣", "4️⃣"],
+        ["🇸 Стандартные", "🇦 Изобильные"],
+        ["🇸 Стандартные", "🇦 Изобильные", "<:Yes:808418109710794843> Гарантированные"],
+        ["<:No:808418109319938099> Запрещена", "🇦 Между союзниками", "🇫 Между друзьями и союзниками", "🪙 Разрешена"],
+        ["<:No:808418109319938099> Запрещена", "🇦 Между союзниками", "🇫 Между друзьями и союзниками", "🐴 Разрешена"],
+        ["2️⃣", "3️⃣", "♾️"],
+        ["<:No:808418109319938099> Запрещён", "🗡️ Разрешён"],
+    ]
+
+    reactionsList = [
+        ["🇵", "🇭", "7️⃣", "🇱", "🇨", "🇦"],    // 0
+        ["🏕️", "🏔️"],
+        ["2️⃣", "3️⃣", "4️⃣"],
+        ["🇸", "🇦"],
+        ["🇸", "🇦", "<:Yes:808418109710794843>"],
+        ["<:No:808418109319938099>", "🇦", "🇫", "🪙"],
+        ["<:No:808418109319938099>", "🇦", "🇫", "🐴"],
+        ["2️⃣", "3️⃣", "♾️"],
+        ["<:No:808418109319938099>", "🗡️"],
+        ["🤔"],     // 9
+        ["⚡"]      // 10
+    ]
+
+    messageContentListStart = [];
+    messageContentListVotes = [];
+    for(i in messageBeginContentStart){
+        messageContentListStart[i] = messageBeginContentStart[i];
+        if((i == 1)||(i == 2))
+            for(userID of usersID)
+                messageContentListStart[i] += " <@{0}>".format(userID);
+    }
+    for(i in reactionsList){
+        messageContentListVotes[i] = messageBeginContentMid[i];
+        for(j in possibleResults[i])
+            messageContentListVotes[i] += (possibleResults[i][j] + " | ");
+        messageContentListVotes[i] = messageContentListVotes[i].slice(0, -3);
+    }
+    messageContentListVotes[messageBeginContentMid.length-2] = messageBeginContentMid[messageBeginContentMid.length-2];
+    messageContentListVotes[messageBeginContentMid.length-1] = messageBeginContentMid[messageBeginContentMid.length-1];
+
+    civilizationsEmojiList = Array.from(civilizations.keys());
+
+    const trueFilter = (reaction, user) => {return true;};
+    const filter = (reaction, user) => {
+        messageID = reaction.message.id;
+        for(index in messageContentListVotes)
+        if(messageContentListVotes[index].id == messageID){
+            j = index;
+            break;
+        }
+        if(j == 9)
+            return (((civilizationsEmojiList.includes(reaction.emoji.toString().toLowerCase()) || civilizationsEmojiList.includes(reaction.emoji.name)) && (usersID.includes(user.id))) || user.bot);
+        return (((reactionsList[j].includes(reaction.emoji.name) || reactionsList[j].includes(reaction.emoji.toString())) && (usersID.includes(user.id))) || user.bot);
+    };
+
+    for(i in messageContentListStart)
+        messageContentListStart[i] = await message.channel.send(messageContentListStart[i]);
+    for(i in messageContentListVotes)
+        messageContentListVotes[i] = await message.channel.send(messageContentListVotes[i]);
+
+    collectorList = [];
+    emojiResult = [];
+    for(i in messageContentListVotes){
+        collectorList[i] = await messageContentListVotes[i].createReactionCollector(trueFilter, {time: 125000});     // +35 сек
+        collectorList[i].on('collect', (reaction, user) => {
+            if(!(filter(reaction, user))){
+                messageID = reaction.message.id;
+                for(index in messageContentListVotes)
+                if(messageContentListVotes[index].id == messageID){
+                    j = index;
+                    break;
+                }
+                messageContentListVotes[j].reactions.resolve(reaction).users.remove(user);
+            }
+            else if(j == messageContentListVotes.length-2){      // Баны
+                emojies = messageContentListVotes[j].reactions.cache.array();
+                emojiNameArray = emojies.map(function(element){ return element._emoji.toString().toLowerCase(); });
+                emojiCountArray = emojies.map(function(element){ return element.count; });
+                emojiName = reaction.emoji.toString().toLowerCase();
+                if((emojiCountArray[emojiNameArray.indexOf(emojiName)] > usersCount/2) && (emojiName != "🤔")){
+                    messageContentListVotes[j].edit(messageContentListVotes[j].content + "\n" + civilizations.get(emojiName));
+                    civilizationsEmojiList.splice(civilizationsEmojiList.indexOf(emojiName), 1);
+                    reaction.remove();
+                }
+            }
+            else if(j == messageContentListVotes.length-1){      // Молния
+                emojiArray = messageContentListVotes[j].reactions.cache.array();
+                if(emojiArray[0].count-1 == usersCount)
+                    for(collector of collectorList)
+                        collector.stop();
+
+                votedUserIndex = usersID.indexOf(user.id);
+                if(votedUserIndex != -1){
+                    usersID.splice(votedUserIndex, 1);
+                    messageContentListStartWaiting = messageBeginContentStart[2];
+                    for(userID of usersID)
+                        messageContentListStartWaiting += " <@{0}>".format(userID);
+                    if(usersID.length != 0)
+                        messageContentListStart[2].edit(messageContentListStartWaiting);
+                }
+            }
+        });
+        collectorList[i].on('end', (collected, reason) => {
+            emojies = collected.array();
+            messageID = emojies[0].message.id;
+            for(index in messageContentListVotes)
+            if(messageContentListVotes[index].id == messageID){
+                j = index;                                              // Текущее сообщение
+                break;
+            }
+            emojiName = emojies.map(function(element){ return element._emoji.toString(); });
+            emojiCount = emojies.map(function(element){ return element.count; });
+            emojiResult[j] = emojiName[emojiCount.indexOf(Math.max(...emojiCount))];
+            if ((emojiResult.filter(Boolean).length == possibleResults.length) && (messageContentListVotes.length == messageContentListVotesLength)){                                                      // Если всё готово, то... этот блок вызывается
+                messageContentListStart[0].edit("📌 __**Результат голосования за настройки игровой карты и правила игры**__ 📌");  // один раз в случае готовности всех коллекторов, см. выше
+                messageContentListStart[2].edit("⚡__**Все игроки проголосовали!**__");
+                for(k in emojiResult){                                                                                              // Новый итератор для всех сообщений, j больше не нужен
+                    messageContentListVotes[k].reactions.removeAll();
+                    resultIndex = reactionsList[k].indexOf(emojiResult[k]);
+                    messageContentListVotes[k].edit(messageBeginContentMid[k] + possibleResults[k][resultIndex]);
+                }
+                messageContentListVotes[emojiResult.length].reactions.removeAll();
+                messageContentListVotes.pop().delete();
+            }
+        });
+    }
+    for(i in messageContentListVotes)
+        await messageContentListVotes[i].react(reactionsList[i][0]);
+    for(i in messageContentListVotes){
+        reactionsLength = reactionsList[i].length;
+        if(reactionsLength > 1)
+            for(let j = 1; j < reactionsLength; j++)
+                await messageContentListVotes[i].react(reactionsList[i][j])
+    }
+}
+
 async function test(robot, message, args){
     if(!hasPermissionLevel(message.member, 5)) return;
-    message.channel.send(getEmbed_Test(robot, message, args));
 }
 
 var commands =
@@ -372,6 +550,11 @@ var commands =
         name: ["daily", "bonus"],
         out: bonus,
         about: "Ежедневная награда"
+    },
+    {
+        name: ["new", "begin"],
+        out: newgameVoting,
+        about: "Начать голосование за настройки и правила игры"
     },
     {
         name: ["test"],

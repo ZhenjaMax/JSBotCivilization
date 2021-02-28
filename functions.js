@@ -81,5 +81,5 @@ module.exports = {
     parsePlayers,
     parseNumberRule,
     parseDuration,
-    getTimeInSeconds
+    getTimeInSeconds,
 }

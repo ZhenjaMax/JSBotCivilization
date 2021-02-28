@@ -1,5 +1,5 @@
 const Discord = require('discord.js');
-const { String } = require('./functions.js')
+const { String } = require('./functions.js');
 
 function getEmbed_NoVoice() {
     const embedMsg = new Discord.MessageEmbed()
