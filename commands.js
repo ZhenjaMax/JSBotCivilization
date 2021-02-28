@@ -29,7 +29,8 @@ const { getUserdata,
         updateUserdataLikeIncrement,
         updateUserdataLikeCooldown,
         updateUserdataDislikeIncrement,
-        updateUserdataDislikeCooldown } = require('./database.js');
+        updateUserdataDislikeCooldown,
+        updateNewCooldownDate } = require('./database.js');
 const { ratingHandler } = require('./rating.js');
 const { banAdm,
         unbanAdm,
@@ -244,8 +245,19 @@ async function newgameVoting(robot, message, args){
     if(voiceChannel == null)
         return message.channel.send(getEmbed_NoVoice());
 
+    authorID = message.author.id;
+    userData = await getUserdata(authorID);
+    newCommandDate = userData.newCooldown;
+    if(newCommandDate){
+        currentDate = new Date();
+        if(currentDate.getSeconds() - newCommandDate.getSeconds() < 150)
+            return;
+    }
+    updateNewCooldownDate(authorID);
+
     users =  message.member.voice.channel.members;
     usersID = users.keyArray();
+
     for(let i = 0; i < usersID.length; i++)
         if(message.guild.members.cache.get(usersID[i]).user.bot)
             usersID.splice(i, 1);

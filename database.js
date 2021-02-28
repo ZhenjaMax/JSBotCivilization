@@ -52,6 +52,8 @@ const databaseUsers = database.define('users', {
 	bonusStreak:	{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
 	likeCooldown:	{ type: Sequelize.DATE },
 	dislikeCooldown:{ type: Sequelize.DATE },
+
+	newCooldown:	{ type: Sequelize.DATE },
 });
 
 
@@ -221,6 +223,15 @@ function syncDatabase(){
 	databaseUsers.sync({ alter: true });
 }
 
+async function updateNewCooldownDate(userID){
+	try{
+		let newCooldownDate = new Date();
+		return await databaseUsers.update({ newCooldown: newCooldownDate }, { where: { userid: userID } });
+	} catch (errorUpdateNewCooldownDate) {
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateNewCooldownDate"));
+	}
+}
+
 function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
 	let currentLevel = 1;
 	if (user.roles.cache.has(roleSupportID))
@@ -256,5 +267,7 @@ module.exports = {
 	getAllUserdataMuted,
 	getAllUserdataNoChat,
 
-	checkUserSilent
+	checkUserSilent,
+
+	updateNewCooldownDate
 }
