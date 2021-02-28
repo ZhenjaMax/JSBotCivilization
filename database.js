@@ -49,6 +49,7 @@ const databaseUsers = database.define('users', {
 	achievements: 	{ type: Sequelize.STRING, 	defaultValue: '000000', 	allowNull: false },
 
 	bonusCooldown:	{ type: Sequelize.DATE },
+	bonusStreak:	{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
 	likeCooldown:	{ type: Sequelize.DATE },
 	dislikeCooldown:{ type: Sequelize.DATE },
 });
