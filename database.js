@@ -2,6 +2,11 @@
 // В ТОЧНОСТИ - ИМПОРТ И ЭКСПОРТ, СОЗДАНИЕ И УДАЛЕНИЕ.
 // НЕ НУЖНО ВКЛЮЧАТЬ СЮДА ОСТАЛЬНЫЕ ВЗАИМОДЕЙСТВИЯ.
 
+// DataGeneral
+// DataTimings
+// DataClans
+// DataAchivements
+
 const 	Sequelize = require('sequelize');
 const { getEmbed_UnknownError } = require('./embedMessages.js');
 const { bot,
@@ -13,24 +18,20 @@ const { bot,
 		ownerID } = require('./config.js');
 
 
-const database = new Sequelize('database', 'user', 'password', {
+const databaseUsersSequelize = new Sequelize('database', 'user', 'password', {
 	host: 		'localhost',
 	dialect: 	'sqlite',
 	logging: 	false,
-	storage: 	'./database.sqlite',
+	storage: 	'./databaseUsers.sqlite',
 });
 
-
-// DataGeneral
-// DataTimings
-// DataClans
-// DataAchivements
-
-const databaseUsers = database.define('users', {
+const databaseUsers = databaseUsersSequelize.define('users', {
     userid: 		{ type: Sequelize.STRING, 	unique: true },
 	description: 	{ type: Sequelize.TEXT },
 	registration:	{ type: Sequelize.DATE, 	defaultValue: new Date() },
     rating: 		{ type: Sequelize.INTEGER, 	defaultValue: 1000, 		allowNull: false },
+  	ratingffa: 		{ type: Sequelize.INTEGER, 	defaultValue: 1000, 		allowNull: false },
+  	ratingteam: 	{ type: Sequelize.INTEGER, 	defaultValue: 1000, 		allowNull: false },
 	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	
 	wins: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
@@ -56,6 +57,24 @@ const databaseUsers = database.define('users', {
 	newCooldown:	{ type: Sequelize.DATE },
 });
 
+const databaseRatingSequelize = new Sequelize('database', 'user', 'password', {
+	host: 		'localhost',
+	dialect: 	'sqlite',
+	logging: 	false,
+	storage: 	'./databaseRating.sqlite',
+});
+
+const databaseRating = databaseRatingSequelize.define('users', {
+	gameid: 		{ type: Sequelize.INTEGER, 	allowNull: false },
+	gameType:		{ type: Sequelize.INTEGER, 	allowNull: false },					// 0 = FFA, 1 = Team
+	isActive:		{ type: Sequelize.INTEGER, 	defaultValue: 1, allowNull: false},	// 0 = no, 	1 = yes
+
+    userid: 		{ type: Sequelize.STRING, 	allowNull: false },
+	ratingAdd:		{ type: Sequelize.INTEGER, 	allowNull: false },
+	ratingTypedAdd:	{ type: Sequelize.INTEGER, 	allowNull: false },
+	moneyAdd:		{ type: Sequelize.INTEGER, 	allowNull: false },
+	karmaAdd:		{ type: Sequelize.INTEGER, 	allowNull: false },
+});
 
 async function getUserdata(userID){
 	try{
@@ -154,6 +173,20 @@ async function updateUserdataRating(userID, ratingNew){
 	}
 }
 
+async function updateUserdataRatingTyped(userID, ratingNew, typeTeamFlag){
+	try{
+		let userdata = await getUserdata(userID);
+		if(!userdata)
+			await createUserdata(userID);
+		if(typeTeamFlag)
+			await databaseUsers.update({ ratingteam: ratingNew }, { where: { userid: userID } });
+		else
+			await databaseUsers.update({ ratingffa: ratingNew }, { where: { userid: userID } });
+	} catch (errorUpdateUserdataRating){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataRating"));
+	}
+}
+
 async function updateUserdataKarma(userID, karmaNew){
 	try{
 		let userdata = await getUserdata(userID);
@@ -219,8 +252,17 @@ async function updateUserdataDislikeCooldown(userID){
 	}
 }
 
-function syncDatabase(){
-	databaseUsers.sync({ alter: true });
+async function updateUserdataBonusCooldown(userID, currentDate){
+	try{
+		let userdata = await getUserdata(userID);
+		if (!userdata){
+			await createUserdata(userID);
+			userdata = await getUserdata(userID);
+		}
+		return await databaseUsers.update({ bonusCooldown: currentDate }, { where: { userid: userID } });
+	} catch (errorUpdateUserdataBonusCooldown){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataBonusCooldown"));
+	}
 }
 
 async function updateNewCooldownDate(userID){
@@ -230,6 +272,66 @@ async function updateNewCooldownDate(userID){
 	} catch (errorUpdateNewCooldownDate) {
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateNewCooldownDate"));
 	}
+}
+
+async function setUserdataMoney(userID, moneyValue){
+	try{
+		return await databaseUsers.update({ money: moneyValue }, { where: { userid: userID } });
+	} catch (errorSetUserdataMoney) {
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorSetUserdataMoney"));
+	}
+}
+
+async function setUserdataBonusStreak(userID, daysValue){
+	try{
+		return await databaseUsers.update({ bonusStreak: daysValue }, { where: { userid: userID } })
+	} catch (errorSetUserdataBonusStreak){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorSetUserdataBonusStreak"));
+	}
+}
+
+async function updateUserdataGameStats(userID, gameValue, reverted = false){		// -1 = defeatComplete, 0 = defeat, 1 = win, 2 = winComplete
+	try{
+		let userdata = await getUserdata(userID);
+		if(gameValue > 0){
+			reverted ? await databaseUsers.update({ wins: userdata.wins-1 }, { where: { userid: userID } }) : await databaseUsers.update({ wins: userdata.wins+1 }, { where: { userid: userID } });
+			if(gameValue > 1)
+				reverted ? await databaseUsers.update({ winsComplete: userdata.winsComplete-1 }, { where: { userid: userID } }) : await databaseUsers.update({ winsComplete: userdata.winsComplete+1 }, { where: { userid: userID } });
+		} else {
+			reverted ? await databaseUsers.update({ defeats: userdata.defeats-1 }, { where: { userid: userID } }) : databaseUsers.update({ defeats: userdata.defeats+1 }, { where: { userid: userID } });
+			if(gameValue < 0)
+				reverted ? await databaseUsers.update({ defeatsComplete: userdata.defeatsComplete-1 }, { where: { userid: userID } }) : await databaseUsers.update({ defeatsComplete: userdata.defeatsComplete+1 }, { where: { userid: userID } });
+		}
+	} catch (errorSetUserdataBonusStreak){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorSetUserdataBonusStreak"));
+	}
+}
+
+async function databaseRatingRegister(newGameType, userIDArray, ratingAddArray, ratingTypedAddArray, moneyAddArray, karmaAddArray){
+	maxID = await databaseRating.max('gameid');
+	newGameID = maxID ? maxID+1 : 1;
+	for(i in userIDArray){
+		await databaseRating.create({
+			gameid: newGameID, 
+			gameType: newGameType,
+			userid: userIDArray[i], 
+			ratingAdd: ratingAddArray[i], 
+			ratingTypedAdd: ratingTypedAddArray[i],
+			moneyAdd: moneyAddArray[i],
+			karmaAdd: karmaAddArray[i]
+		});
+	}
+	return newGameID;
+}
+
+async function databaseRatingUnregister(registeredGameID){
+	maxID = await databaseRating.max('gameid');
+	if(maxID)
+		maxID = 1;
+	gameResults = await databaseRating.findAll({ where: {gameid: registeredGameID} });
+	if(gameResults.length != 0)
+		await databaseRating.update({isActive: 0}, {where: {gameid: registeredGameID}});
+	return gameResults;
 }
 
 function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
@@ -247,6 +349,11 @@ function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - с
 	return (level <= currentLevel);
 }
 
+function syncDatabase(){
+	databaseUsers.sync({ alter: true });
+	databaseRating.sync({ alter: true });
+}
+
 module.exports = { 
 	getUserdata,
 	createUserdata,
@@ -254,6 +361,8 @@ module.exports = {
 	hasPermissionLevel,
 
 	updateUserdataRating,
+	updateUserdataRatingTyped,
+	updateUserdataGameStats,
 	updateUserdataKarma,
 	updateUserdataLikeIncrement,
 	updateUserdataLikeCooldown,
@@ -269,5 +378,11 @@ module.exports = {
 
 	checkUserSilent,
 
-	updateNewCooldownDate
+	updateNewCooldownDate,
+	setUserdataMoney,
+	setUserdataBonusStreak,
+	updateUserdataBonusCooldown,
+
+	databaseRatingRegister,
+	databaseRatingUnregister
 }
