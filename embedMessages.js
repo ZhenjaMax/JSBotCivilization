@@ -1,6 +1,7 @@
 const Discord = require('discord.js');
 const { String,
         getDateRus } = require('./functions.js');
+const { roleRanksValue } = require('./config.js');
 
 function getEmbed_NoVoice() {
     const embedMsg = new Discord.MessageEmbed()
@@ -103,7 +104,6 @@ function getEmbed_Clear(count) {
 
 function getEmbed_Profile(user, userData, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .setColor("#0044FF")
         .setTitle("👥 Профиль игрока")
         .addFields(
             { name: 'Никнейм:', value: user.toString(), inline: true },
@@ -119,7 +119,19 @@ function getEmbed_Profile(user, userData, author) {
         )
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
-        .setThumbnail(user.avatarURL())
+        .setThumbnail(user.avatarURL());
+        let colorList = [
+            "#ffff00", "#ffe100",
+            "#ffc300", "#ffa600",
+            "#ff8800", "#ff6600",
+            "#ff4800", "#ff0000",
+            "#ff0054"
+        ];
+        let index = 0
+        for(index; index < roleRanksValue.length; index++)
+            if(userData.rating < roleRanksValue[index])
+                break;
+        embedMsg.setColor(colorList[index]);
     return embedMsg;
 }
 
@@ -602,6 +614,17 @@ function getEmbed_Bonus(author, bonusValue, streakValue, isMaxStreakFlag, moneyV
     return embedMsg;
 }
 
+function getEmbed_BiasList(){
+    defaultURL = "https://cdn.discordapp.com/attachments/462808131999629333/779417967263088653/Start_Biass_BBG_v4-0-3.jpg";
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#00B3FF")
+        .setTitle("🏞️ Стартовые спавны наций")
+        .setColor("#47FF3D")
+        .setDescription("На изображении ниже приведены все стартовые спавны (биасы) наций.\n\n📌 **Актуально для модификации BBG v4.0.3.**")
+        .setImage(defaultURL);
+    return embedMsg;
+}
+
 module.exports = {
     getEmbed_NoVoice,
     getEmbed_WrongNumber,
@@ -637,6 +660,7 @@ module.exports = {
     getEmbed_Remap,
     getEmbed_Karma,
     getEmbed_Money,
-    getEmbed_Bonus
+    getEmbed_Bonus,
+    getEmbed_BiasList
 }
 

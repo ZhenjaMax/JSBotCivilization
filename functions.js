@@ -43,6 +43,7 @@ String.prototype.format = function() {
 function parseInteger(str){
     if(str == undefined)
         return undefined;
+    str = String(str);
     regexp = /^-?(\d+)$/gm;
     match = Array.from(str.matchAll(regexp));
     return match.length == 1 ? parseInt(match[0][0]) : NaN;
