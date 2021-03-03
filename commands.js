@@ -23,7 +23,8 @@ const { getEmbed_Avatar,
         getEmbed_Test,
         getEmbed_Karma,
         getEmbed_Money,
-        getEmbed_Bonus } = require('./embedMessages.js');
+        getEmbed_Bonus,
+        getEmbed_BiasList } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
 const { getUserdata,
@@ -198,6 +199,10 @@ async function dislike(robot, message, args){
         userData = await getUserdata(user.id);
         karma = userData.karma;
         await updateUserdataKarma(userData.userid, Math.max(karma-1, 0));
+        if(Math.random() > 0.5){                    // С вероятность 50% снимет отправителю
+            authorData = await getUserdata(author.id);
+            await updateUserdataKarma(author.id, Math.max(authorData.karma-1, 0));
+        }
         await updateUserdataDislikeIncrement(user.id);
         await updateUserdataDislikeCooldown(authorID);
         userData = await getUserdata(user.id);
@@ -356,6 +361,7 @@ async function newgameVoting(robot, message, args){
 
     collectorList = [];
     emojiResult = [];
+    argsForDraft = [4];
     for(i in messageContentListVotes){
         collectorList[i] = await messageContentListVotes[i].createReactionCollector(trueFilter, {time: 125000});     // +35 сек
         collectorList[i].on('collect', (reaction, user) => {
@@ -377,6 +383,7 @@ async function newgameVoting(robot, message, args){
                     messageContentListVotes[j].edit(messageContentListVotes[j].content + "\n" + civilizations.get(emojiName));
                     civilizationsEmojiList.splice(civilizationsEmojiList.indexOf(emojiName), 1);
                     reaction.remove();
+                    argsForDraft.push(emojiName);
                 }
             }
             else if(j == messageContentListVotes.length-1){      // Молния
@@ -398,6 +405,8 @@ async function newgameVoting(robot, message, args){
         });
         collectorList[i].on('end', (collected, reason) => {
             emojies = collected.array();
+            if(emojies[0] == undefined)
+                return;
             messageID = emojies[0].message.id;
             for(index in messageContentListVotes)
             if(messageContentListVotes[index].id == messageID){
@@ -417,6 +426,7 @@ async function newgameVoting(robot, message, args){
                 }
                 messageContentListVotes[emojiResult.length].reactions.removeAll();
                 messageContentListVotes.pop().delete();
+                draftFFA(robot, message, argsForDraft, users);
             }
         });
     }
@@ -514,12 +524,20 @@ async function money(robot, message, args){
                 newMoneyValue = Math.max(newMoneyValue + userdata.money, 0);
             if(handler == "set")
                 newMoneyValue = Math.max(newMoneyValue, 0);
-            setUserdataMoney(member.id, newMoneyValue);
-            message.channel.send(getEmbed_Money(member, newMoneyValue, message.author));
+            await setUserdataMoney(member.id, newMoneyValue);
+            await message.channel.send(getEmbed_Money(member, newMoneyValue, message.author));
             break;
         default:
-            return message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\nadd, set."));
+            return await message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\nadd, set."));
     }
+}
+
+async function bias(robot, message, args){
+    return await message.channel.send(getEmbed_BiasList());
+}
+
+async function achievement(robot, message, args){
+    
 }
 
 var commands =
@@ -672,7 +690,17 @@ var commands =
     {
         name: ["money"],
         out: money,
-        about: "Интерфейс админской команды для редактирования денег у "
+        about: "Интерфейс админской команды для редактирования денег у игроков"
+    },
+    {
+        name: ["bias"],
+        out: bias,
+        about: "Команда для вывода стартовых биасов наций"
+    },
+    {
+        name: ["ach", "achievement"],
+        out: achievement,
+        about: "Интерфейс для получения списка достижений и их получения"
     },
 ]
 

@@ -63,6 +63,14 @@ const civilizations = new Map([
   ["<:vietnam:804417073140334603>",   "Вьетнам <:Vietnam:804417073140334603> Госпожа Чьеу"]
 ]);
 
+const achievementsNames = [
+  "Египетский поход",
+];
+
+const achievementsCondition = [
+  "Играя за Францию, к началу хода имейте Наполеона Бонапарта (великий генерал), находящегося на чуде Пирамиды."
+];
+
 const guildID = '663144077818331186';
 const chatChannelID = '698294019331063908';
 const botChannelID = '698295115063492758';
@@ -132,5 +140,5 @@ module.exports = {
   bot,
   schedule,
 
-  DEBUG
+  DEBUG,
 }

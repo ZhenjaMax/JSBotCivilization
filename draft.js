@@ -43,7 +43,7 @@ function getDraftFFA(playerCount, civilizationsCount, rawBans) {
     return [draftList, bans.sort(), errors.sort()];
 }
 
-function draftFFA(robot, message, args) {
+function draftFFA(robot, message, args, autoNewUsers = false) {
     civilizationsCountMin = 1;
     civilizationsCountMax = 16;
     civilizationsCountDefault = 3;
@@ -53,11 +53,15 @@ function draftFFA(robot, message, args) {
     bansString = ""; valueField = ""; authorField = "";
     userBotsCount = 0;
 
-    voiceChannel = message.member.voice.channel;
-    if(voiceChannel == null)
-        return message.channel.send(getEmbed_NoVoice());
-
-    users =  message.member.voice.channel.members;          // Особый тип данных
+    let users = [];
+    if(autoNewUsers == false){
+        voiceChannel = message.member.voice.channel;
+        if(voiceChannel == null)
+            return message.channel.send(getEmbed_NoVoice());
+        users =  message.member.voice.channel.members;          // Особый тип данных
+    } else {
+        users = autoNewUsers;
+    }
     usernames = users.map(member => member.user.tag);
     userID = users.keyArray();
     for(let i = 0; i < userID.length; i++)
