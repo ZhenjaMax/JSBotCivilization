@@ -1,5 +1,6 @@
 const Discord = require('discord.js');
-const { String } = require('./functions.js');
+const { String,
+        getDateRus } = require('./functions.js');
 
 function getEmbed_NoVoice() {
     const embedMsg = new Discord.MessageEmbed()
@@ -103,71 +104,237 @@ function getEmbed_Clear(count) {
 function getEmbed_Profile(user, userData, author) {
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#0044FF")
-        .setTitle("Профиль игрока")
+        .setTitle("👥 Профиль игрока")
         .addFields(
             { name: 'Никнейм:', value: user.toString(), inline: true },
-            { name: 'Рейтинг:', value: userData.rating, inline: true },
-            { name: 'Деньги:', value: userData.money, inline: true },
-        )
-        .addFields(
-            { name: 'Лайки/Дизлайки', value: (userData.likes + "/" + userData.dislikes), inline: true },
-            { name: 'Карма:', value: userData.karma, inline: true },
-            { name: 'Наказание:', value: "{0}".format( (userData.banned || userData.mutedvoice || userData.mutedchat) ? "да" : "нет" ), inline: true },
+            { name: '🪙 Деньги:', value: userData.money, inline: true },
+            { name: '🎩 Лайки/Дизлайки', value: `👍 ${userData.likes} / ${userData.dislikes} 👎`, inline: true },
+            { name: '💧 Карма:', value: "{0}".format(userData.karma == 100 ? userData.karma + "  👼" : (userData.karma == 0 ? userData.karma + "  😈" : userData.karma)), inline: true },
+            { name: '📈 Рейтинг:', value: "Общий: {0}\nFFA: {1}\nTeamers: {2}".format(userData.rating, userData.ratingffa, userData.ratingteam), inline: true },
+            { name: '🔎 Обзор игр:', value: 
+            `Победы/поражения: ${userData.wins} / ${userData.defeats} 
+            Первых мест: ${userData.winsComplete}
+            Полных поражений: ${userData.defeatsComplete}`, inline: true },
+            { name: '🔨 Наказание:', value: "{0}".format( (userData.banned || userData.mutedvoice || userData.mutedchat) ? "да" : "нет" ), inline: true },
         )
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
-        .setThumbnail(author.avatarURL());
+        .setThumbnail(user.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_Ban(user, dateUntil, reason) {
+function getEmbed_Ban(user, dateUntil, reason, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .addField("🔨 Бан", "Игрок: {0}\nСрок до: {1}\nПричина:{2}".format(user.toString(), dateUntil, reason));
+        .setColor("#FF9100")
+        .setTitle("🔨 Бан")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+            { name: 'Срок назания до:', value: getDateRus(dateUntil), inline: true },
+            { name: 'Причина:', value: reason, inline: true },
+        )
+        .setFooter("Администратор " + author.tag, author.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_Unban(user) {
+function getEmbed_Unban(user, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .addField("Разбанен", "Игрок: {0}".format(user.toString()));
+        .setColor("#FF9100")
+        .setTitle("🔨 Разбан")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+        );
+        if(author)
+            embedMsg.setFooter("Администратор " + author.tag, author.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_Mute(user, dateUntil, reason) {
+function getEmbed_Mute(user, dateUntil, reason, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .addField("Мут", "Игрок: {0}\nСрок до: {1}\nПричина:{2}".format(user.toString(), dateUntil, reason));
+        .setColor("#FF9100")
+        .setTitle("🔨 Мут")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+            { name: 'Срок назания до:', value: getDateRus(dateUntil), inline: true },
+            { name: 'Причина:', value: reason, inline: true },
+        )
+        .setFooter("Администратор " + author.tag, author.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_Unmute(user) {
+function getEmbed_Unmute(user, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .addField("Размучен", "Игрок: {0}".format(user.toString()));
+        .setColor("#FF9100")
+        .setTitle("🔨 Размут")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+        );
+        if(author)
+            embedMsg.setFooter("Администратор " + author.tag, author.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_Nochat(user, dateUntil, reason) {
+function getEmbed_Nochat(user, dateUntil, reason, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .addField("Блокировка чата", "Игрок: {0}\nСрок до: {1}\nПричина:{2}".format(user.toString(), dateUntil, reason));
+        .setColor("#FF9100")
+        .setTitle("🔨 Блокировка чата")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+            { name: 'Срок назания до:', value: getDateRus(dateUntil), inline: true },
+            { name: 'Причина:', value: reason, inline: true },
+        )
+        .setFooter("Администратор " + author.tag, author.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_Unchat(user) {
+function getEmbed_Unchat(user, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .addField("Разблокировка чата", "Игрок: {0}".format(user.toString()));
+        .setColor("#FF9100")
+        .setTitle("🔨 Разблокировка чата")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+        );
+        if(author)
+            embedMsg.setFooter("Администратор " + author.tag, author.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_Pardon(user) {
+function getEmbed_Pardon(user, author) {
     const embedMsg = new Discord.MessageEmbed()
-        .addField("Все ограничения сняты!", "Игрок: {0}".format(user.toString()));
+        .setColor("#FF9100")
+        .setTitle("🔨 Все ограничения сняты!")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+        )
+        .setFooter("Администратор " + author.tag, author.avatarURL())
     return embedMsg;
 }
 
-function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter){
+function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, moneyAdd, karmaAdd, teamFlag, multType, gameID, isCancel){
+    userString = ""; ratingString = ""; additionalString = "";
+    if(isCancel){
+        const embedMsg = new Discord.MessageEmbed()
+            .setColor('#00FFF0')
+            .setFooter("Администратор " + author.tag, author.avatarURL())
+            .setTitle("📉 Отмена рейтинга")
+            .addFields(
+                { name: 'Тип игры:', value: "{0}".format(teamFlag ? "Teamers" : "FFA"), inline: true },
+                { name: 'ID игры:', value: "__**#" + gameID + "**__", inline: true},
+                { name: 'Весь рейтинг будет возвращён.', value: "**Все полученные бонусы аннулируются.**", inline: true},
+            );
+            if(teamFlag){       // TEAM сообщение
+                for(i = 0; i < (user.length)/2; i++){
+                    userString += "{0}\n".format(user[i].toString());
+                    ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
+                        ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
+                        ratingAfter[i]);
+                    additionalString += "**-{0}** 🪙 |  **-{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
+                }
+                embedMsg.addFields(
+                    { name: 'Никнейм:', value: userString, inline: true },
+                    { name: 'Рейтинг:', value: ratingString, inline: true },
+                    { name: 'Возврат:', value: additionalString, inline: true},
+                );
+                userString = ""; ratingString = ""; additionalString = "";
+                for(i; i < user.length; i++){
+                    userString += "{0}\n".format(user[i].toString());
+                    ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
+                        ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
+                        ratingAfter[i]);
+                    additionalString += "**-{0}** 🪙 |  **-{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
+                }
+                embedMsg.addFields(
+                    { name: 'Никнейм:', value: userString, inline: true },
+                    { name: 'Рейтинг:', value: ratingString, inline: true },
+                    { name: 'Возврат:', value: additionalString, inline: true},
+                );
+            } else {    // FFA сообщение
+                for(i in user){
+                    userString += "{0}. {1}\n".format(Number(i)+1, user[i].toString());
+                    ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
+                        ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
+                        ratingAfter[i]);
+                    additionalString += "**-{0}** 🪙 |  **-{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
+                }
+                embedMsg
+                    .addFields(
+                    { name: 'Никнейм:', value: userString, inline: true },
+                    { name: 'Рейтинг:', value: ratingString, inline: true },
+                    { name: 'Возврат:', value: additionalString, inline: true},
+                )
+            }
+        return embedMsg;
+
+    }
     const embedMsg = new Discord.MessageEmbed()
-        .setColor('#00FFF0');
-        for(let i in user)
-            embedMsg.addField("Изменение рейтинга", "{0}: {1} -> {2} ({3})".format(user[i].toString(), ratingBefore[i], ratingAfter[i], 
-                ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i])));
+        .setColor('#00FFF0')
+        .setFooter("Администратор " + author.tag, author.avatarURL())
+        .setTitle("📈 Изменение рейтинга");
+    if(user.length != 1){
+        let victoryTypesFFA = ["CC", "Научная", "Культурная", "Военная", "Религиозная", "Дипломатическая", "По очкам"];
+        embedMsg.addFields(
+            { name: 'Тип игры:', value: "{0}".format(teamFlag ? "Teamers" : "FFA"), inline: true },
+            { name: 'Тип победы:', value: "{0}".format(teamFlag ? "GG" : victoryTypesFFA[multType]), inline: true },
+            { name: 'ID игры:', value: "__**#" + gameID + "**__", inline: true},
+        );
+        if(teamFlag){       // TEAM сообщение
+            for(i = 0; i < (user.length)/2; i++){
+                userString += "{0}\n".format(user[i].toString());
+                ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
+                    ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
+                    ratingAfter[i]);
+                additionalString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
+            }
+            embedMsg.addFields(
+                { name: 'Никнейм:', value: userString, inline: true },
+                { name: 'Рейтинг:', value: ratingString, inline: true },
+                { name: 'Бонус:', value: additionalString, inline: true},
+            );
+            userString = ""; ratingString = ""; additionalString = "";
+            for(i; i < user.length; i++){
+                userString += "{0}\n".format(user[i].toString());
+                ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
+                    ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
+                    ratingAfter[i]);
+                additionalString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
+            }
+            embedMsg.addFields(
+                { name: 'Никнейм:', value: userString, inline: true },
+                { name: 'Рейтинг:', value: ratingString, inline: true },
+                { name: 'Бонус:', value: additionalString, inline: true},
+            );
+        } else {    // FFA сообщение
+            for(i in user){
+                userString += "{0}. {1}\n".format(Number(i)+1, user[i].toString());
+                ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
+                    ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
+                    ratingAfter[i]);
+                additionalString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
+            }
+            let victoryThumbnailsURL = [
+                "https://static.wikia.nocookie.net/civilization/images/4/44/Science_Victory_%28Civ6%29.png",
+                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/6/61/Icon_victory_culture.png",
+                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/f/f7/Icon_victory_default.png",
+                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/1/1c/Icon_victory_religious.png",
+                "https://static.wikia.nocookie.net/civilization/images/1/1e/Diplomatic_Victory_%28Civ6%29.png/revision/latest/scale-to-width-down/220?cb=20200430082219",
+                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/2/27/Icon_victory_score.png"
+            ]
+            embedMsg
+                .setThumbnail(victoryThumbnailsURL[multType-1])
+                .addFields(
+                { name: 'Никнейм:', value: userString, inline: true },
+                { name: 'Рейтинг:', value: ratingString, inline: true },
+                { name: 'Бонус:', value: additionalString, inline: true},
+            )
+        }
+    } else {    // АДМИН СООБЩЕНИЕ
+        embedMsg.addFields(
+            { name: 'Никнейм:', value: user[0].toString(), inline: true },
+            { name: 'Рейтинг:', value: "**{0}** {1} ({2})\n".format(
+                ratingAfter[0]<ratingBefore[0] ? ratingAfter[0]-ratingBefore[0] : "+" + (ratingAfter[0]-ratingBefore[0]), 
+                ratingAfter[0]<ratingBefore[0] ? "📉" : "📈", 
+                ratingAfter[0]), inline: true },
+        );
+    }
     return embedMsg;
 }
 
@@ -357,6 +524,84 @@ function getEmbed_Veto(){
     return embedMsg;
 }
 
+function getEmbed_Karma(user, karmaValue, author){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#00B3FF")
+        .setTitle("💧 Изменение кармы")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+            { name: 'Новое значение:', value: karmaValue, inline: true },
+        )
+        .setFooter("Администратор " + author.tag, author.avatarURL())
+    return embedMsg;
+}
+
+function getEmbed_Money(user, moneyValue, author){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#FFD500")
+        .setTitle("🪙 Изменение баланса")
+        .addFields(
+            { name: 'Игрок:', value: user.toString(), inline: true },
+            { name: 'Новое значение:', value: moneyValue, inline: true },
+        )
+        .setFooter("Администратор " + author.tag, author.avatarURL())
+    return embedMsg;
+}
+
+function getEmbed_Bonus(author, bonusValue, streakValue, isMaxStreakFlag, moneyValue, ratingValue, karmaValue){
+    bonusStringContent = `**Вы получили ${bonusValue} 🪙.**\n`;
+    if(ratingValue)
+        bonusStringContent += `**Вы получили 📈 +${ratingValue} к общему рейтингу.**\n`;
+    if(karmaValue)
+        bonusStringContent += `**Вы получили 💧 +${karmaValue} к карме.**\n`;
+    if(ratingValue + karmaValue)
+        bonusStringContent += "\n";
+    bonusStringContent += `**Ваш баланс: ${moneyValue} 🪙.**\n\n`;
+    bonusStringContent += `**Вы получаете ежедневный бонус `;
+    switch(streakValue){
+        case 1:
+            bonusStringContent += `${streakValue} день`;
+            break;
+        case 5:
+        case 6:
+            bonusStringContent += `${streakValue} дней`;
+            break;
+        case 7:
+            if(isMaxStreakFlag)
+                bonusStringContent += `более ${streakValue} дней`
+            else
+                bonusStringContent += `${streakValue} дней`;
+            break;
+        default:
+            bonusStringContent += `${streakValue} дня`;
+            break;
+    }
+    bonusStringContent += " подряд!**";
+    if(streakValue == 7){
+        if(isMaxStreakFlag)
+            bonusStringContent += " 🥳\n💷 💷 💷 💷 💷 💷 💷";
+        else
+            bonusStringContent += " 🥳\n💵 💵 💵 💵 💵 💵";
+        bonusStringContent += " 💸\n**Приходите завтра, чтобы сохранить накопленный бонус!**"
+    }
+    else{
+        bonusStringContent += "\n";
+        for(let i = 0; i < streakValue-1; i++)
+            bonusStringContent += "💵 ";
+        bonusStringContent += "💸 "
+        for(let i = 0; i < 7 - streakValue; i++)
+            bonusStringContent += "🗓️ ";
+        bonusStringContent += "\n**Приходите завтра и получите больше бонусов!**";
+    }
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#FFD500")
+        .setTitle("💰 Ежедневный бонус")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(bonusStringContent);
+    return embedMsg;
+}
+
 module.exports = {
     getEmbed_NoVoice,
     getEmbed_WrongNumber,
@@ -389,6 +634,9 @@ module.exports = {
     getEmbed_CC,
     getEmbed_Scrap,
     getEmbed_Veto,
-    getEmbed_Remap
+    getEmbed_Remap,
+    getEmbed_Karma,
+    getEmbed_Money,
+    getEmbed_Bonus
 }
 

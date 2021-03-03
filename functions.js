@@ -23,11 +23,21 @@ function getRandomHexBrightString(){
     return rgbToHex(shuffle([0, 255, randomInteger(256)]));
 }
 
+/*
 String.prototype.format = String.prototype.f = function(){
 	var args = arguments;
 	return this.replace(/\{(\d+)\}/g, function(m,n){
 		return args[n] ? args[n] : m;
 	});
+};
+# PROBLEMS WITH 0
+*/
+
+String.prototype.format = function() {
+    var args = arguments;
+    return this.replace(/{(\d+)}/g, function(match, number) { 
+        return typeof args[number] != 'undefined' ? args[number] : match; 
+    });
 };
 
 function parseInteger(str){
@@ -73,6 +83,58 @@ function getTimeInSeconds(value, typeSymbol){
     return value * typeofTime.get(typeSymbol);
 }
 
+function getDateRus(date){
+    dateString = "";
+    dateString += (date.getDate() + " ");
+    switch(date.getMonth()){
+        case 0:
+            dateString += "января";
+            break;
+        case 1:
+            dateString += "февраля";
+            break;
+        case 2:
+            dateString += "марта";
+            break;
+        case 3:
+            dateString += "апреля";
+            break;
+        case 4:
+            dateString += "мая";
+            break;
+        case 5:
+            dateString += "июня";
+            break;
+        case 6:
+            dateString += "июля";
+            break;
+        case 7:
+            dateString += "августа";
+            break;
+        case 8:
+            dateString += "сентября";
+            break;
+        case 9:
+            dateString += "октября";
+            break;
+        case 10:
+            dateString += "ноября";
+            break;
+        case 11:
+            dateString += "декабря";
+            break;
+    }
+    let hTimeDelta = 1;
+    dateString += (" " + date.getFullYear() + " года,\n");
+    if((date.getHours() + hTimeDelta)%24 < 10)
+        dateString += "0"; 
+    dateString += ((date.getHours() + hTimeDelta)%24 + ":");
+    if(date.getMinutes() < 10)
+        dateString += "0"; 
+    dateString += (date.getMinutes() + " МСК");
+    return dateString;
+}
+
 module.exports = { 
     getRandomHexBrightString, 
     randomInteger, 
@@ -82,4 +144,5 @@ module.exports = {
     parseNumberRule,
     parseDuration,
     getTimeInSeconds,
+    getDateRus
 }

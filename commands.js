@@ -20,7 +20,10 @@ const { getEmbed_Avatar,
         getEmbed_Scrap,
         getEmbed_Veto,
         getEmbed_Remap,
-        getEmbed_Test } = require('./embedMessages.js');
+        getEmbed_Test,
+        getEmbed_Karma,
+        getEmbed_Money,
+        getEmbed_Bonus } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
 const { getUserdata,
@@ -30,7 +33,11 @@ const { getUserdata,
         updateUserdataLikeCooldown,
         updateUserdataDislikeIncrement,
         updateUserdataDislikeCooldown,
-        updateNewCooldownDate } = require('./database.js');
+        updateNewCooldownDate,
+        setUserdataMoney,
+        setUserdataBonusStreak,
+        updateUserdataBonusCooldown,
+        updateUserdataRating } = require('./database.js');
 const { ratingHandler } = require('./rating.js');
 const { banAdm,
         unbanAdm,
@@ -236,10 +243,6 @@ async function remap(robot, message, args){
     message.channel.send(getEmbed_Remap())
 }
 
-async function bonus(robot, message, args){
-    
-}
-
 async function newgameVoting(robot, message, args){
     voiceChannel = message.member.voice.channel;
     if(voiceChannel == null)
@@ -427,8 +430,96 @@ async function newgameVoting(robot, message, args){
     }
 }
 
+async function karma(robot, message, args){
+    if(!hasPermissionLevel(message.member, 2)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    handler = args.shift();
+    switch(handler){
+        case 'add':
+        case 'set':
+            member = await message.mentions.members.first();
+            if(!member)
+                return await message.channel.send(getEmbed_Error("Укажите пользователя для изменения кармы."));
+            userdata = await getUserdata(member.id);
+            newValueKarma = parseInteger(args[1]);
+            if(newValueKarma == undefined)
+                return await message.channel.send(getEmbed_Error("Введите целое значение."));
+            if(handler == "add")
+                newValueKarma = Math.min(Math.max(newValueKarma + userdata.karma, 0), 100);
+            if(handler == "set")
+                newValueKarma = Math.min(Math.max(newValueKarma, 0), 100);
+            updateUserdataKarma(member.id, newValueKarma);
+            return await message.channel.send(getEmbed_Karma(member, newValueKarma, message.author));
+        default:
+            return await message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\nadd, set."));
+    }
+}
+
 async function test(robot, message, args){
     if(!hasPermissionLevel(message.member, 5)) return;
+}
+
+async function bonus(robot, message, args){
+    userID = message.author.id;
+    userdata = await getUserdata(userID);
+    bonusDate = userdata.bonusCooldown;
+    tempDate = new Date();
+    currentDate = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 0, 0, 0, 0);
+    let deltaDays = 1;
+    if(bonusDate)
+        deltaDays = (currentDate - bonusDate)/(1000*86400);
+    if(deltaDays == 0)
+        return message.channel.send(getEmbed_Error("Попробуйте завтра."));
+
+    let maxStreak = 7;
+    let isMaxStreakFlag = (userdata.bonusStreak == maxStreak);
+    daysValue = (deltaDays == 1) ? Math.min(userdata.bonusStreak+1, maxStreak) : 1;
+
+    random = Math.random()/4 + 0.75;
+    karmaCoeff = (userdata.karma-50)*0.5;
+    bonusValue = Math.round(Math.max(25*random*daysValue + karmaCoeff, 20));
+    let karmaValue = 0;
+    let ratingValue = 0;
+    if(Math.random() > 1-(daysValue/10)){
+        ratingValue++;
+        if((daysValue >= 5) && (Math.random() > 0.75))
+            ratingValue++;
+    }
+    if(Math.random() > 1-(0.11 + 0.04*daysValue))
+        karmaValue++;
+
+    if(ratingValue)
+        await updateUserdataRating(userID, userdata.rating + ratingValue);
+    if(karmaValue)
+        updateUserdataKarma(userID, userdata.karma + karmaValue);
+    await setUserdataBonusStreak(userID, daysValue);
+    await setUserdataMoney(userID, userdata.money + bonusValue);
+    await updateUserdataBonusCooldown(userID, currentDate);
+    return await message.channel.send(getEmbed_Bonus(message.author, bonusValue, daysValue, isMaxStreakFlag, userdata.money + bonusValue, ratingValue, karmaValue));
+}
+
+async function money(robot, message, args){
+    if(!hasPermissionLevel(message.member, 5)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    handler = args.shift();
+    switch(handler){
+        case 'add':
+        case 'set':
+            member = await message.mentions.members.first();
+            if(!member)
+                return message.channel.send(getEmbed_Error("Укажите пользователя для изменения денег."));
+            userdata = await getUserdata(member.id);
+            newMoneyValue = parseInteger(args[1]);
+            if(newMoneyValue == undefined)
+                return message.channel.send(getEmbed_Error("Введите целое значение."));
+            if(handler == "add")
+                newMoneyValue = Math.max(newMoneyValue + userdata.money, 0);
+            if(handler == "set")
+                newMoneyValue = Math.max(newMoneyValue, 0);
+            setUserdataMoney(member.id, newMoneyValue);
+            message.channel.send(getEmbed_Money(member, newMoneyValue, message.author));
+            break;
+        default:
+            return message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\nadd, set."));
+    }
 }
 
 var commands =
@@ -572,7 +663,17 @@ var commands =
         name: ["test"],
         out: test,
         about: "Тестовая команда"
-    }
+    },
+    {
+        name: ["karma"],
+        out: karma,
+        about: "Админская команда для изменения значения кармы"
+    },
+    {
+        name: ["money"],
+        out: money,
+        about: "Интерфейс админской команды для редактирования денег у "
+    },
 ]
 
 module.exports = commands;
