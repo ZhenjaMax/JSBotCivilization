@@ -8,7 +8,8 @@ const { roleBannedID,
         chatChannelID,
         schedule,
         bot,
-        guildID } = require('./config.js');
+        guildID,
+        bansReportsChannelID } = require('./config.js');
 const { getEmbed_Ban,
         getEmbed_Unban,
         getEmbed_Mute,
@@ -43,7 +44,8 @@ async function banAdm(robot, message, args){
         await member.roles.add(roleBanned);
         await updateUserdataBanned(member.id, dateUntil);
         administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unbanAuto(member); }));
-        return await message.channel.send(getEmbed_Ban(member, dateUntil, reason, message.author));
+        await message.channel.send(getEmbed_Ban(member, dateUntil, reason, message.author));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Ban(member, dateUntil, reason, message.author));
     } catch (errorBanAdm) {
         return message.channel.send(getEmbed_UnknownError("errorBanAdm"));
     }
@@ -60,7 +62,8 @@ async function unbanAdm(robot, message, args){
         roleBanned = await message.guild.roles.cache.get(roleBannedID);
         await user.roles.remove(roleBanned);
         await updateUserdataBanned(user.id, null);
-        return await message.channel.send(getEmbed_Unban(user, message.author));
+        await message.channel.send(getEmbed_Unban(user, message.author));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unban(user, message.author));
     } catch (errorUnban) {
         return message.channel.send(getEmbed_UnknownError("errorUnbanAdm"));
     }
@@ -76,7 +79,8 @@ async function unbanAuto(user){
             await user.roles.remove(roleBanned);
         }
         await updateUserdataBanned(user.id, null);
-        return await bot.channels.cache.get(chatChannelID).send(getEmbed_Unban(user));
+        await bot.channels.cache.get(chatChannelID).send(getEmbed_Unban(user));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unban(user));
     } catch (errorUnbanAuto) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUnbanAuto"));
     }
@@ -102,7 +106,8 @@ async function muteAdm(robot, message, args){
         await member.roles.add(roleMuted);
         await updateUserdataMuted(member.id, dateUntil);
         administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unmuteAuto(member); }));
-        return await message.channel.send(getEmbed_Mute(member, dateUntil, reason, message.author));
+        await message.channel.send(getEmbed_Mute(member, dateUntil, reason, message.author));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Mute(member, dateUntil, reason, message.author));
     } catch (errorMuteAdm) {
         return message.channel.send(getEmbed_UnknownError("errorMuteAdm"));
     }
@@ -119,7 +124,8 @@ async function unmuteAdm(robot, message, args){
         roleMuted = await message.guild.roles.cache.get(roleMutedVoiceID);
         await user.roles.remove(roleMuted);
         await updateUserdataMuted(user.id, null);
-        return await message.channel.send(getEmbed_Unmute(user, message.author));
+        await message.channel.send(getEmbed_Unmute(user, message.author));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unmute(user, message.author));
     } catch (errorUnmuteAdm) {
         return message.channel.send(getEmbed_UnknownError("errorUnmuteAdm"));
     }
@@ -135,7 +141,8 @@ async function unmuteAuto(user){
             await user.roles.remove(roleMuted);
         }
         await updateUserdataMuted(user.id, null);
-        return await bot.channels.cache.get(chatChannelID).send(getEmbed_Unmute(user));
+        await bot.channels.cache.get(chatChannelID).send(getEmbed_Unmute(user));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unmute(user));
     } catch (errorUnmuteAuto) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUnmuteAuto"));
     }
@@ -161,7 +168,8 @@ async function nochatAdm(robot, message, args){
         await member.roles.add(roleMutedChat);
         await updateUserdataNochat(member.id, dateUntil);
         administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unchatAuto(member); }));
-        return await message.channel.send(getEmbed_Nochat(member, dateUntil, reason, message.author));
+        await message.channel.send(getEmbed_Nochat(member, dateUntil, reason, message.author));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Nochat(member, dateUntil, reason, message.author));
     } catch (errorNochatAdm) {
         return message.channel.send(getEmbed_UnknownError("errorNochatAdm"));
     }
@@ -178,7 +186,8 @@ async function unchatAdm(robot, message, args){
         roleMutedChat = await message.guild.roles.cache.get(roleMutedChatID);
         await user.roles.remove(roleMutedChat);
         await updateUserdataNochat(user.id, null);
-        return await message.channel.send(getEmbed_Unchat(user, message.author));
+        await message.channel.send(getEmbed_Unchat(user, message.author));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unchat(user, message.author));
     } catch (errorUnchatAdm) {
         return message.channel.send(getEmbed_UnknownError("errorUnchatAdm"));
     }
@@ -194,7 +203,8 @@ async function unchatAuto(user){
             await user.roles.remove(roleMutedChat);
         }
         await updateUserdataNochat(user.id, null);
-        return await bot.channels.cache.get(chatChannelID).send(getEmbed_Unchat(user));
+        await bot.channels.cache.get(chatChannelID).send(getEmbed_Unchat(user));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unchat(user));
     } catch (errorUnchatAuto) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUnchatAuto"));
     }
@@ -217,7 +227,8 @@ async function pardonAdm(robot, message, args){
         await updateUserdataBanned(user.id, null);
         await updateUserdataMuted(user.id, null);
         await updateUserdataNochat(user.id, null);
-        return await message.channel.send(getEmbed_Pardon(user, message.author));
+        await message.channel.send(getEmbed_Pardon(user, message.author));
+        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Pardon(user, message.author));
     } catch (errorPardonAdm) {
         return message.channel.send(getEmbed_UnknownError("errorPardonAdm"));
     }

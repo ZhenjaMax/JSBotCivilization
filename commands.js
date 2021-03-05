@@ -49,6 +49,8 @@ const { banAdm,
         pardonAdm } = require('./administration.js');
 const { String } = require('./functions.js');
 const { civilizations } = require('./config.js');
+const { catImage,
+        dogImage } = require('./url.js');
 
 function draft(robot, message, args) {
     if(args[0] == "ffa"){
@@ -363,7 +365,7 @@ async function newgameVoting(robot, message, args){
     emojiResult = [];
     argsForDraft = [4];
     for(i in messageContentListVotes){
-        collectorList[i] = await messageContentListVotes[i].createReactionCollector(trueFilter, {time: 125000});     // +35 сек
+        collectorList[i] = await messageContentListVotes[i].createReactionCollector(trueFilter, {time: 155000});     // +35 сек
         collectorList[i].on('collect', (reaction, user) => {
             if(!(filter(reaction, user))){
                 messageID = reaction.message.id;
@@ -508,11 +510,11 @@ async function bonus(robot, message, args){
 }
 
 async function money(robot, message, args){
-    if(!hasPermissionLevel(message.member, 5)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
     handler = args.shift();
     switch(handler){
         case 'add':
         case 'set':
+            if(!hasPermissionLevel(message.member, 5)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
             member = await message.mentions.members.first();
             if(!member)
                 return message.channel.send(getEmbed_Error("Укажите пользователя для изменения денег."));
@@ -525,10 +527,26 @@ async function money(robot, message, args){
             if(handler == "set")
                 newMoneyValue = Math.max(newMoneyValue, 0);
             await setUserdataMoney(member.id, newMoneyValue);
-            await message.channel.send(getEmbed_Money(member, newMoneyValue, message.author));
-            break;
+            return message.channel.send(getEmbed_Money(member, newMoneyValue, message.author));
+        case 'pay':
+            author = await message.author;
+            member = await message.mentions.members.first();
+            if(!member)
+                return message.channel.send(getEmbed_Error("Укажите пользователя для передачи денег."));
+            sendMoneyValue = parseInteger(args[1]);
+            if((sendMoneyValue == undefined) || (isNaN(sendMoneyValue)))
+                return message.channel.send(getEmbed_Error("Введите целое значение денег для передачи денег, большее 0."));
+            if(sendMoneyValue <= 0)
+                return message.channel.send(getEmbed_Error("Введите целое значение денег для передачи денег, большее 0."));
+            userdataSend = await getUserdata(author.id);
+            userdataReceive = await getUserdata(member.id);
+            if(userdataSend.money < sendMoneyValue)
+                return message.channel.send(getEmbed_Error("У вас недостаточно средств!"));
+            await setUserdataMoney(userdataSend.userid, userdataSend.money - sendMoneyValue);
+            await setUserdataMoney(userdataReceive.userid, userdataReceive.money + sendMoneyValue);
+            return message.channel.send(getEmbed_Money(member, sendMoneyValue, message.author, [[userdataSend.money, userdataSend.money - sendMoneyValue], [userdataReceive.money, userdataReceive.money + sendMoneyValue]]));
         default:
-            return await message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\nadd, set."));
+            return await message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\npay, add, set."));
     }
 }
 
@@ -701,6 +719,16 @@ var commands =
         name: ["ach", "achievement"],
         out: achievement,
         about: "Интерфейс для получения списка достижений и их получения"
+    },
+    {
+        name: ["cat"],
+        out: catImage,
+        about: "Случайный кот"
+    },
+    {
+        name: ["dog"],
+        out: dogImage,
+        about: "Случайный пёс"
     },
 ]
 

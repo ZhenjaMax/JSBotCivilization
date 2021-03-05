@@ -15,10 +15,10 @@ const { roleRanksID,
         roleRanksValue,
         bot,
         guildID } = require('./config.js');
-
+const { ratingReportsChannelID } = require('./config.js');
 
 async function ratingHandler(robot, message, args){
-    //try{
+    try{
         let users = [], playersID = parsePlayers(message.content); 
         ratingTypedBefore = [], ratingBefore = [],  
         ratingTypedAfter = [], ratingAfter = [],   
@@ -43,7 +43,8 @@ async function ratingHandler(robot, message, args){
                 user = message.guild.members.cache.get(playerID).user;
                 ratingAfter = (handler == 'set') ? ratingValue : ratingBefore + ratingValue;
                 await updateUserdataRating(playerID, ratingAfter);
-                message.channel.send(getEmbed_RatingSingleChange([user], [ratingBefore], [ratingAfter], message.author));
+                await message.channel.send(getEmbed_RatingSingleChange([user], [ratingBefore], [ratingAfter], message.author));
+                await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange([user], [ratingBefore], [ratingAfter], message.author));
                 break;
             case 'cc':
             case 'mult':
@@ -85,6 +86,7 @@ async function ratingHandler(robot, message, args){
                 }
                 gameID = await databaseRatingRegister(Number(handler == 'team'), playersID, ratingAdd, ratingTypedAdd, moneyAdd, karmaAdd);
                 await message.channel.send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', multType, gameID, handler == 'cancel'));
+                await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', multType, gameID, handler == 'cancel'));
                 break;
             case 'cancel':
                 gameID = parseInteger(args.shift());
@@ -126,15 +128,16 @@ async function ratingHandler(robot, message, args){
                     await updateUserdataGameStats(playersID[i], (i == 0 ? 2 : (ratingTypedAdd[i] >= 0 ? 1 : 0)), true);
                 }
                 await message.channel.send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', 0, gameID, handler == 'cancel'));
+                await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', 0, gameID, handler == 'cancel'));
                 break;
             default:
                 return message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\ncc, mult, team, set, add/change, cancel."));
         }
         if(playersID.length > 0)
             updateUsersRatingRole(playersID);
-    //} catch (errorRatingHandler){
-    //    message.channel.send(getEmbed_UnknownError("errorRatingHandler"));
-    //}
+    } catch (errorRatingHandler){
+        message.channel.send(getEmbed_UnknownError("errorRatingHandler"));
+    }
 }
 
 async function updateUsersRatingRole(playersID){
