@@ -125,7 +125,7 @@ function getDateRus(date){
             dateString += "декабря";
             break;
     }
-    let hTimeDelta = 1;
+    let hTimeDelta = 3;
     dateString += (" " + date.getFullYear() + " года,\n");
     if((date.getHours() + hTimeDelta)%24 < 10)
         dateString += "0"; 

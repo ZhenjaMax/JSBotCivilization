@@ -1,6 +1,8 @@
 const Discord = require('discord.js');
 const { String,
-        getDateRus } = require('./functions.js');
+        getDateRus, 
+        getRandomHexBrightString,
+        randomInteger} = require('./functions.js');
 const { roleRanksValue } = require('./config.js');
 
 function getEmbed_NoVoice() {
@@ -548,15 +550,30 @@ function getEmbed_Karma(user, karmaValue, author){
     return embedMsg;
 }
 
-function getEmbed_Money(user, moneyValue, author){
+function getEmbed_Money(user, moneyValue, author, payment = false){
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#FFD500")
-        .setTitle("🪙 Изменение баланса")
-        .addFields(
-            { name: 'Игрок:', value: user.toString(), inline: true },
-            { name: 'Новое значение:', value: moneyValue, inline: true },
-        )
-        .setFooter("Администратор " + author.tag, author.avatarURL())
+        .setTitle("🪙 Изменение баланса");
+        if(payment == false)
+            embedMsg
+                .addFields(
+                    { name: 'Игрок:', value: user.toString(), inline: true },
+                    { name: 'Новое значение:', value: moneyValue, inline: true },
+                )
+                .setFooter("Администратор " + author.tag, author.avatarURL());
+        else
+            embedMsg
+                .addFields(
+                    { name: 'Отправитель:', value: author.toString(), inline: true },
+                    { name: 'Было:', value: payment[0][0], inline: true },
+                    { name: 'Стало:', value: payment[0][1], inline: true }
+                )
+                .addFields(
+                    { name: 'Получатель:', value: user.toString(), inline: true },
+                    { name: 'Было:', value: payment[1][0], inline: true },
+                    { name: 'Стало:', value: payment[1][1], inline: true }
+                )
+                .setFooter(author.tag, author.avatarURL());
     return embedMsg;
 }
 
@@ -617,11 +634,30 @@ function getEmbed_Bonus(author, bonusValue, streakValue, isMaxStreakFlag, moneyV
 function getEmbed_BiasList(){
     defaultURL = "https://cdn.discordapp.com/attachments/462808131999629333/779417967263088653/Start_Biass_BBG_v4-0-3.jpg";
     const embedMsg = new Discord.MessageEmbed()
-        .setColor("#00B3FF")
         .setTitle("🏞️ Стартовые спавны наций")
         .setColor("#47FF3D")
         .setDescription("На изображении ниже приведены все стартовые спавны (биасы) наций.\n\n📌 **Актуально для модификации BBG v4.0.3.**")
         .setImage(defaultURL);
+    return embedMsg;
+}
+
+function getEmbed_CatImage(catURL){
+    catEmojis = ["😼", "😹", "🙀", "😾", "😿", "😻", "😺", "😸", "😽", "🐱", "🐈"];
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(getRandomHexBrightString())
+        .setTitle("{0} Случайный кот!".format(catEmojis[randomInteger(catEmojis.length)]))
+        .setDescription("Какой же он милый!")
+        .setImage(catURL);
+    return embedMsg;
+}
+
+function getEmbed_DogImage(dogURL){
+    dogEmojis = ["🐶", "🦮", "🐕‍🦺", "🐕", "🐺"];
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(getRandomHexBrightString())
+        .setTitle("{0} Случайный пёс!".format(dogEmojis[randomInteger(dogEmojis.length)]))
+        .setDescription("Какой же он крутой!")
+        .setImage(dogURL);
     return embedMsg;
 }
 
@@ -661,6 +697,8 @@ module.exports = {
     getEmbed_Karma,
     getEmbed_Money,
     getEmbed_Bonus,
-    getEmbed_BiasList
+    getEmbed_BiasList,
+    getEmbed_CatImage,
+    getEmbed_DogImage
 }
 
