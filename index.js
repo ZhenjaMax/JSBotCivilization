@@ -30,21 +30,32 @@ bot.on("ready", async () => {
         console.log(bot.user.username + " запустился в DEBUG MODE!");
         return;
     }
-
+    currentDate = new Date();
     bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
-
     usersBanned = await getAllUserdataBanned();
-    for(userdata of usersBanned)
-        administrationJobs.push(schedule.scheduleJob(userdata.banned, async function (){ await unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-    
+    if(usersBanned)
+        for(userdata of usersBanned){
+            if(currentDate - userdata.banned >= 0)
+                await unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
+            else
+                administrationJobs.push(schedule.scheduleJob(userdata.banned, async function (){ await unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
+        }
     usersMuted = await getAllUserdataMuted();
-    for(userdata of usersMuted)
-        administrationJobs.push(schedule.scheduleJob(userdata.mutedvoice, async function (){ await unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-
+    if(usersMuted)
+        for(userdata of usersMuted){
+            if(currentDate - userdata.mutedvoice >= 0)
+                await unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
+            else
+                administrationJobs.push(schedule.scheduleJob(userdata.mutedvoice, async function (){ await unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
+        }
     usersNochat = await getAllUserdataNoChat();
-    for(userdata of usersNochat)
-        administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-    
+    if(usersNochat)
+        for(userdata of usersNochat){
+            if(currentDate - userdata.mutedvoice >= 0)
+                await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
+            else
+                administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
+        }
     console.log(bot.user.username + " запустился!");
 });
 
@@ -98,15 +109,13 @@ bot.on('message', async (message) => {
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))
-            //try
-            {
+            try{
                 await commands[i].out(bot, message, args);
                 if(!(command == "clean" || command == "clear"))
                     await message.delete();
+            } catch (errorOnMessage) {
+                return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
             }
-            //catch (errorOnMessage) {
-            //    return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
-            //}
 });
 
 bot.login(token);

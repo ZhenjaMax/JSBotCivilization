@@ -23,16 +23,6 @@ function getRandomHexBrightString(){
     return rgbToHex(shuffle([0, 255, randomInteger(256)]));
 }
 
-/*
-String.prototype.format = String.prototype.f = function(){
-	var args = arguments;
-	return this.replace(/\{(\d+)\}/g, function(m,n){
-		return args[n] ? args[n] : m;
-	});
-};
-# PROBLEMS WITH 0
-*/
-
 String.prototype.format = function() {
     var args = arguments;
     return this.replace(/{(\d+)}/g, function(match, number) { 
@@ -85,6 +75,8 @@ function getTimeInSeconds(value, typeSymbol){
 }
 
 function getDateRus(date){
+    let hTimeDelta = 3;
+    date += 1000*3600*hTimeDelta;
     dateString = "";
     dateString += (date.getDate() + " ");
     switch(date.getMonth()){
@@ -125,11 +117,10 @@ function getDateRus(date){
             dateString += "декабря";
             break;
     }
-    let hTimeDelta = 3;
     dateString += (" " + date.getFullYear() + " года,\n");
-    if((date.getHours() + hTimeDelta)%24 < 10)
+    if((date.getHours())%24 < 10)
         dateString += "0"; 
-    dateString += ((date.getHours() + hTimeDelta)%24 + ":");
+    dateString += (date.getHours()%24 + ":");
     if(date.getMinutes() < 10)
         dateString += "0"; 
     dateString += (date.getMinutes() + " МСК");

@@ -110,7 +110,7 @@ async function getAllUserdataBanned(){
 	try{
 		return await databaseUsers.findAll( {where: { banned: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataBanned) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataBanned"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataBanned"));
 	}
 }
 
@@ -118,7 +118,7 @@ async function getAllUserdataMuted(){
 	try{
 		return await databaseUsers.findAll( {where: { mutedvoice: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataMuted) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetUserdataMuted"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataMuted"));
 	}
 }
 
@@ -126,7 +126,7 @@ async function getAllUserdataNoChat(){
 	try{
 		return await databaseUsers.findAll( {where: { mutedchat: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataNoChat) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataNoChat"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataNoChat"));
 	}
 }
 
