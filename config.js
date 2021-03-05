@@ -114,6 +114,7 @@ const ownerID = '352051709649879053';
 const ratingReportsChannelID = '817163438655537173';
 const bansReportsChannelID = '817162797594968094';
 const achievementReportsChannelID = '817164450166734868';
+const proposalChannelID = '817346967067426816';
 
 const roleRanksID = [
   '817181568388562984',
@@ -161,6 +162,7 @@ module.exports = {
   ratingReportsChannelID,
   bansReportsChannelID,
   achievementReportsChannelID,
+  proposalChannelID,
 
   roleBannedID,
   roleMutedChatID,

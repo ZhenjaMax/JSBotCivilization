@@ -24,7 +24,8 @@ const { getEmbed_Avatar,
         getEmbed_Karma,
         getEmbed_Money,
         getEmbed_Bonus,
-        getEmbed_BiasList } = require('./embedMessages.js');
+        getEmbed_BiasList,
+        getEmbed_Proposal } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
 const { getUserdata,
@@ -38,7 +39,8 @@ const { getUserdata,
         setUserdataMoney,
         setUserdataBonusStreak,
         updateUserdataBonusCooldown,
-        updateUserdataRating } = require('./database.js');
+        updateUserdataRating,
+        updateUserdataProposalCooldown } = require('./database.js');
 const { ratingHandler } = require('./rating.js');
 const { banAdm,
         unbanAdm,
@@ -48,7 +50,8 @@ const { banAdm,
         unchatAdm,
         pardonAdm } = require('./administration.js');
 const { String } = require('./functions.js');
-const { civilizations } = require('./config.js');
+const { civilizations,
+        proposalChannelID } = require('./config.js');
 const { catImage,
         dogImage } = require('./url.js');
 
@@ -558,6 +561,23 @@ async function achievement(robot, message, args){
     
 }
 
+async function proposal(robot, message, args){
+    userdata = await getUserdata(message.author.id);
+    proposalDate = userdata.proposalCooldown;
+    deltaTimeHours = 6;
+    currentDate = new Date();
+    if(proposalDate)
+        if((currentDate - proposalDate)/1000/3600 < deltaTimeHours)
+            return message.channel.send(getEmbed_Error("Отправлять новые предложения можно раз в 6 часов!"));
+    proposalString = (message.content[1] == 'p') ? message.content.slice(10).trim() : message.content.slice(7).trim()   //proposal / offer
+    if(proposalString.length == 0)
+        return message.channel.send(getEmbed_Error("Введите предложение для отправки."));
+    voteMessage = await robot.channels.cache.get(proposalChannelID).send(getEmbed_Proposal(message.author, proposalString));
+    await updateUserdataProposalCooldown(message.author.id, currentDate);
+    await voteMessage.react("<:Yes:808418109710794843>");
+    await voteMessage.react("<:No:808418109319938099>");
+}
+
 var commands =
 [
     {
@@ -729,6 +749,11 @@ var commands =
         name: ["dog"],
         out: dogImage,
         about: "Случайный пёс"
+    },
+    {
+        name: ["proposal", "offer"],
+        out: proposal,
+        about: "Ввести предложение на сервер (сообщение в специализированный канал)"
     },
 ]
 

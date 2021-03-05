@@ -661,6 +661,16 @@ function getEmbed_DogImage(dogURL){
     return embedMsg;
 }
 
+function getEmbed_Proposal(author, proposalString){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#FAB3FF")
+        .setTitle('✍ Предложение:')
+        .setDescription(proposalString)
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
 module.exports = {
     getEmbed_NoVoice,
     getEmbed_WrongNumber,
@@ -699,6 +709,7 @@ module.exports = {
     getEmbed_Bonus,
     getEmbed_BiasList,
     getEmbed_CatImage,
-    getEmbed_DogImage
+    getEmbed_DogImage,
+    getEmbed_Proposal
 }
 

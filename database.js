@@ -55,6 +55,7 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 	dislikeCooldown:{ type: Sequelize.DATE },
 
 	newCooldown:	{ type: Sequelize.DATE },
+	proposalCooldown:{type: Sequelize.DATE },
 });
 
 const databaseRatingSequelize = new Sequelize('database', 'user', 'password', {
@@ -334,6 +335,19 @@ async function databaseRatingUnregister(registeredGameID){
 	return gameResults;
 }
 
+async function updateUserdataProposalCooldown(userID, currentDate){
+	try{
+		let userdata = await getUserdata(userID);
+		if (!userdata){
+			await createUserdata(userID);
+			userdata = await getUserdata(userID);
+		}
+		return await databaseUsers.update({ proposalCooldown: currentDate }, { where: { userid: userID } });
+	} catch (errorUpdateUserdataProposalCooldown){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataProposalCooldown"));
+	}
+}
+
 function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
 	let currentLevel = 1;
 	if (user.roles.cache.has(roleSupportID))
@@ -382,6 +396,7 @@ module.exports = {
 	setUserdataMoney,
 	setUserdataBonusStreak,
 	updateUserdataBonusCooldown,
+	updateUserdataProposalCooldown,
 
 	databaseRatingRegister,
 	databaseRatingUnregister
