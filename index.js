@@ -31,35 +31,31 @@ bot.on("ready", async () => {
         return;
     }
     currentDate = new Date();
-    try{
-        usersBanned = await getAllUserdataBanned();
-        if(usersBanned.length != 0)
-            for(userdata of usersBanned){
-                if(currentDate - userdata.banned >= 0)
-                    unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
-                else
-                    administrationJobs.push(schedule.scheduleJob(userdata.banned, async function (){ await unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-            }
-        usersMuted = await getAllUserdataMuted();
-        if(usersMuted.length != 0)
-            for(userdata of usersMuted){
-                if(currentDate - userdata.mutedvoice >= 0)
-                    unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
-                else
-                    administrationJobs.push(schedule.scheduleJob(userdata.mutedvoice, async function (){ await unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-            }
-        usersNochat = await getAllUserdataNoChat();
-        if(usersNochat.length != 0)
-            for(userdata of usersNochat){
-                if(currentDate - userdata.mutedvoice >= 0)
-                    unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
-                else
-                    administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-            }
-        await bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
-    } catch (errorOnReady) {
-        return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorOnReady"));
-    }
+    bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
+    usersBanned = await getAllUserdataBanned();
+    if(usersBanned)
+        for(userdata of usersBanned){
+            if(currentDate - userdata.banned >= 0)
+                await unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
+            else
+                administrationJobs.push(schedule.scheduleJob(userdata.banned, async function (){ await unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
+        }
+    usersMuted = await getAllUserdataMuted();
+    if(usersMuted)
+        for(userdata of usersMuted){
+            if(currentDate - userdata.mutedvoice >= 0)
+                await unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
+            else
+                administrationJobs.push(schedule.scheduleJob(userdata.mutedvoice, async function (){ await unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
+        }
+    usersNochat = await getAllUserdataNoChat();
+    if(usersNochat)
+        for(userdata of usersNochat){
+            if(currentDate - userdata.mutedvoice >= 0)
+                await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid));
+            else
+                administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
+        }
     console.log(bot.user.username + " запустился!");
 });
 
@@ -103,7 +99,8 @@ bot.on('message', async (message) => {
     if(DEBUG){
         if(message.channel.id != "716283743047909387")
             return;
-    } else {
+    }
+    else{
         if (message.channel.id != botChannelID)
             if(!hasPermissionLevel(message.member, 2) || (message.channel.id == "716283743047909387"))
                 return;
