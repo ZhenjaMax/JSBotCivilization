@@ -105,18 +105,27 @@ function getEmbed_Clear(count) {
 }
 
 function getEmbed_Profile(user, userData, author) {
+    let clanString = "нет";
+    if(userData.clanid){
+        clanString = "<@&{0}>".format(userData.clanid);
+        if(userData.clanStatus == 2)
+            clanString += " (👑 лидер клана)";
+        if(userData.clanStatus == 1)
+            clanString == " (🛡️ модератор клана)";
+    }
     const embedMsg = new Discord.MessageEmbed()
         .setTitle("👥 Профиль игрока")
         .addFields(
             { name: 'Никнейм:', value: user.toString(), inline: true },
             { name: '🪙 Деньги:', value: userData.money, inline: true },
             { name: '🎩 Лайки/Дизлайки', value: `👍 ${userData.likes} / ${userData.dislikes} 👎`, inline: true },
-            { name: '💧 Карма:', value: "{0}".format(userData.karma == 100 ? userData.karma + "  👼" : (userData.karma == 0 ? userData.karma + "  😈" : userData.karma)), inline: true },
+            { name: '💧 Карма:', value: userData.clanid ? "" + "  👼" : (userData.karma == 0 ? userData.karma + "  😈" : userData.karma), inline: true },
             { name: '📈 Рейтинг:', value: "Общий: {0}\nFFA: {1}\nTeamers: {2}".format(userData.rating, userData.ratingffa, userData.ratingteam), inline: true },
             { name: '🔎 Обзор игр:', value: 
             `Победы/поражения: ${userData.wins} / ${userData.defeats} 
             Первых мест: ${userData.winsComplete}
             Полных поражений: ${userData.defeatsComplete}`, inline: true },
+            { name: '🏰 Клан:', value: clanString, inline: true },
             { name: '🔨 Наказание:', value: "{0}".format( (userData.banned || userData.mutedvoice || userData.mutedchat) ? "да" : "нет" ), inline: true },
         )
         .setFooter(author.tag, author.avatarURL())
@@ -671,6 +680,27 @@ function getEmbed_Proposal(author, proposalString){
     return embedMsg;
 }
 
+function getEmbed_ClanInfo(author, clanID, clanRating, clanMoney, clanLeaderID, clanModerators, clanMemberCount, clanAvatarURL){
+    clanModeratorsString = "";
+    for(moder of clanModerators)
+        clanModeratorsString += "<@!{0}>\n".format(moder);
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#74a5d6")
+        .setTitle("🔨 Информация о клане")
+        .addFields(
+            { name: 'Название:', value: "<@&{0}>".format(clanID), inline: true },
+            { name: '📈 Рейтинг:', value: clanRating, inline: true },
+            { name: '🪙 Казна:', value: clanMoney, inline: true },
+            { name: '👑 Лидер клана:', value: "<@!{0}>".format(clanLeaderID), inline: true },
+            { name: '🛡 Модераторы клана:', value: clanModeratorsString, inline: true },
+            { name: 'Число участников:', value: clanMemberCount, inline: true }
+        )
+        .setFooter(author.tag, author.avatarURL());
+    if(clanAvatarURL)
+        embedMsg.setThumbnail(clanAvatarURL);
+    return embedMsg;
+}
+
 module.exports = {
     getEmbed_NoVoice,
     getEmbed_WrongNumber,
@@ -710,6 +740,7 @@ module.exports = {
     getEmbed_BiasList,
     getEmbed_CatImage,
     getEmbed_DogImage,
-    getEmbed_Proposal
+    getEmbed_Proposal,
+    getEmbed_ClanInfo
 }
 

@@ -1,3 +1,4 @@
+const Discord = require('discord.js');
 const { getUserdata,
         updateUserdataBanned, 
         updateUserdataMuted,
@@ -43,7 +44,7 @@ async function banAdm(robot, message, args){
         roleBanned = await message.guild.roles.cache.get(roleBannedID);
         await member.roles.add(roleBanned);
         await updateUserdataBanned(member.id, dateUntil);
-        administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unbanAuto(member); }));
+        administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unbanAuto(member.id); }));
         await message.channel.send(getEmbed_Ban(member, dateUntil, reason, message.author));
         await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Ban(member, dateUntil, reason, message.author));
     } catch (errorBanAdm) {
@@ -69,18 +70,19 @@ async function unbanAdm(robot, message, args){
     }
 }
 
-async function unbanAuto(user){
+async function unbanAuto(userID){
     try{
-        userdata = await getUserdata(user.id);
+        userdata = await getUserdata(userID);
         if(!userdata.banned)
             return;
-        if(bot.guilds.cache.get(guildID).members.cache.get(user.id)){
+        user = bot.guilds.cache.get(guildID).members.cache.get(String(userID));
+        if(user){
             roleBanned = await bot.guilds.cache.get(guildID).roles.cache.get(roleBannedID);
             await user.roles.remove(roleBanned);
+            await bot.channels.cache.get(chatChannelID).send(getEmbed_Unban(user));
+            await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unban(user));
         }
-        await updateUserdataBanned(user.id, null);
-        await bot.channels.cache.get(chatChannelID).send(getEmbed_Unban(user));
-        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unban(user));
+        await updateUserdataBanned(userID, null);
     } catch (errorUnbanAuto) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUnbanAuto"));
     }
@@ -131,18 +133,19 @@ async function unmuteAdm(robot, message, args){
     }
 }
 
-async function unmuteAuto(user){
+async function unmuteAuto(userID){
     try{
-        userdata = await getUserdata(user.id);
+        userdata = await getUserdata(userID);
         if(!userdata.mutedvoice)
             return;
-        if(bot.guilds.cache.get(guildID).members.cache.get(user.id)){
+        user = bot.guilds.cache.get(guildID).members.cache.get(String(userID));
+        if(user){
             roleMuted = await bot.guilds.cache.get(guildID).roles.cache.get(roleMutedVoiceID);
             await user.roles.remove(roleMuted);
+            await bot.channels.cache.get(chatChannelID).send(getEmbed_Unmute(user));
+            await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unmute(user));
         }
-        await updateUserdataMuted(user.id, null);
-        await bot.channels.cache.get(chatChannelID).send(getEmbed_Unmute(user));
-        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unmute(user));
+        await updateUserdataMuted(userID, null);
     } catch (errorUnmuteAuto) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUnmuteAuto"));
     }
@@ -193,18 +196,19 @@ async function unchatAdm(robot, message, args){
     }
 }
 
-async function unchatAuto(user){
+async function unchatAuto(userID){
     try{
-        userdata = await getUserdata(user.id);
+        userdata = await getUserdata(userID);
         if(!userdata.mutedchat)
             return;
-        if(bot.guilds.cache.get(guildID).members.cache.get(user.id)){
+        user = bot.guilds.cache.get(guildID).members.cache.get(String(userID));
+        if(user){
             roleMutedChat = await bot.guilds.cache.get(guildID).roles.cache.get(roleMutedChatID);
             await user.roles.remove(roleMutedChat);
+            await bot.channels.cache.get(chatChannelID).send(getEmbed_Unchat(user));
+            await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unchat(user));
         }
-        await updateUserdataNochat(user.id, null);
-        await bot.channels.cache.get(chatChannelID).send(getEmbed_Unchat(user));
-        await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unchat(user));
+        await updateUserdataNochat(userID, null);
     } catch (errorUnchatAuto) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUnchatAuto"));
     }
