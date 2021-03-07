@@ -30,21 +30,36 @@ bot.on("ready", async () => {
         console.log(bot.user.username + " запустился в DEBUG MODE!");
         return;
     }
-
-    bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
-
-    usersBanned = await getAllUserdataBanned();
-    for(userdata of usersBanned)
-        administrationJobs.push(schedule.scheduleJob(userdata.banned, async function (){ await unbanAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-    
-    usersMuted = await getAllUserdataMuted();
-    for(userdata of usersMuted)
-        administrationJobs.push(schedule.scheduleJob(userdata.mutedvoice, async function (){ await unmuteAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-
-    usersNochat = await getAllUserdataNoChat();
-    for(userdata of usersNochat)
-        administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(bot.guilds.cache.get(guildID).members.cache.get(userdata.userid)); }));
-    
+    currentDate = new Date();
+    try{
+        usersBanned = await getAllUserdataBanned();
+        if(usersBanned.length != 0)
+            for(userdata of usersBanned){
+                if(currentDate - userdata.banned >= 0)
+                    unbanAuto(userdata.userid);
+                else
+                    administrationJobs.push(schedule.scheduleJob(userdata.banned, async function (){ await unbanAuto(userdata.userid); }));
+            }
+        usersMuted = await getAllUserdataMuted();
+        if(usersMuted.length != 0)
+            for(userdata of usersMuted){
+                if(currentDate - userdata.mutedvoice >= 0)
+                    unmuteAuto(userdata.userid);
+                else
+                    administrationJobs.push(schedule.scheduleJob(userdata.mutedvoice, async function (){ await unmuteAuto(userdata.userid); }));
+            }
+        usersNochat = await getAllUserdataNoChat();
+        if(usersNochat.length != 0)
+            for(userdata of usersNochat){
+                if(currentDate - userdata.mutedvoice >= 0)
+                    unchatAuto(userdata.userid);
+                else
+                    administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(userdata.userid); }));
+            }
+        await bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
+    } catch (errorOnReady) {
+        return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorOnReady"));
+    }
     console.log(bot.user.username + " запустился!");
 });
 
@@ -71,7 +86,7 @@ bot.on("guildMemberAdd", async (member) => {
                 isViolation = true;
             }
             if(!isViolation)
-                return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
+                bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
             return;
         } else {
             return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
@@ -86,10 +101,9 @@ bot.on('message', async (message) => {
         return;
 
     if(DEBUG){
-        if(message.channel.id != "716283743047909387")
+        if(message.channel.id != "716283743047909387")      // test-channel
             return;
-    }
-    else{
+    } else {
         if (message.channel.id != botChannelID)
             if(!hasPermissionLevel(message.member, 2) || (message.channel.id == "716283743047909387"))
                 return;
@@ -98,15 +112,13 @@ bot.on('message', async (message) => {
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))
-            //try
-            {
+            try{
                 await commands[i].out(bot, message, args);
                 if(!(command == "clean" || command == "clear"))
                     await message.delete();
+            } catch (errorOnMessage) {
+                return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
             }
-            //catch (errorOnMessage) {
-            //    return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
-            //}
 });
 
 bot.login(token);

@@ -25,6 +25,20 @@ const databaseUsersSequelize = new Sequelize('database', 'user', 'password', {
 	storage: 	'./databaseUsers.sqlite',
 });
 
+const databaseRatingSequelize = new Sequelize('database', 'user', 'password', {
+	host: 		'localhost',
+	dialect: 	'sqlite',
+	logging: 	false,
+	storage: 	'./databaseRating.sqlite',
+});
+
+const databaseClansSequelize = new Sequelize('database', 'user', 'password', {
+	host: 		'localhost',
+	dialect: 	'sqlite',
+	logging: 	false,
+	storage: 	'./databaseClans.sqlite',
+});
+
 const databaseUsers = databaseUsersSequelize.define('users', {
     userid: 		{ type: Sequelize.STRING, 	unique: true },
 	description: 	{ type: Sequelize.TEXT },
@@ -56,13 +70,9 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 
 	newCooldown:	{ type: Sequelize.DATE },
 	proposalCooldown:{type: Sequelize.DATE },
-});
 
-const databaseRatingSequelize = new Sequelize('database', 'user', 'password', {
-	host: 		'localhost',
-	dialect: 	'sqlite',
-	logging: 	false,
-	storage: 	'./databaseRating.sqlite',
+	clanid:			{ type: Sequelize.INTEGER },													// ID роли клана
+	clanStatus:		{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },		// 0 - игрок, 1 - модератор, 2 - создатель клана
 });
 
 const databaseRating = databaseRatingSequelize.define('users', {
@@ -75,6 +85,15 @@ const databaseRating = databaseRatingSequelize.define('users', {
 	ratingTypedAdd:	{ type: Sequelize.INTEGER, 	allowNull: false },
 	moneyAdd:		{ type: Sequelize.INTEGER, 	allowNull: false },
 	karmaAdd:		{ type: Sequelize.INTEGER, 	allowNull: false },
+});
+
+const databaseClans = databaseClansSequelize.define('users', {
+	clanid: 		{ type: Sequelize.STRING, 	unique: true },
+	name:			{ type: Sequelize.STRING, 	unique: true },
+	leaderid:		{ type: Sequelize.STRING, 	unique: true },
+	textchannelid:	{ type: Sequelize.STRING, 	unique: true },
+	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	avatarURL:		{ type: Sequelize.STRING},
 });
 
 async function getUserdata(userID){
@@ -110,7 +129,7 @@ async function getAllUserdataBanned(){
 	try{
 		return await databaseUsers.findAll( {where: { banned: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataBanned) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataBanned"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataBanned"));
 	}
 }
 
@@ -118,7 +137,7 @@ async function getAllUserdataMuted(){
 	try{
 		return await databaseUsers.findAll( {where: { mutedvoice: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataMuted) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetUserdataMuted"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataMuted"));
 	}
 }
 
@@ -126,7 +145,7 @@ async function getAllUserdataNoChat(){
 	try{
 		return await databaseUsers.findAll( {where: { mutedchat: { [Sequelize.Op.not]: null }}} );
 	} catch (errorGetUserdataNoChat) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("getAllUserdataNoChat"));
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataNoChat"));
 	}
 }
 
@@ -348,6 +367,59 @@ async function updateUserdataProposalCooldown(userID, currentDate){
 	}
 }
 
+async function clanCreate(userID, roleID, nameString, textChannelID){
+	await databaseClans.create({
+		clanid: roleID,
+		name: nameString,
+		leaderid: userID,
+		textchannelid: textChannelID
+	});
+}
+
+async function clanGetData(clanID){
+	return await databaseClans.findOne({ where: { clanid: clanID } });
+}
+
+async function clanDelete(clanID){
+	return await databaseClans.destroy({ where: { clanid: clanID } });
+}
+
+async function clanUpdateMoney(clanID, moneyValue){
+	return await databaseClans.update({ money: moneyValue }, { where: { clanid: clanID } });
+}
+
+async function clanUpdateAvatar(clanID, url){
+	return await databaseClans.update({ avatarURL: url }, { where: { clanid: clanID } });
+}
+
+async function clanUpdateLeader(clanID, userID){
+	return await databaseClans.update({ leaderid: userID }, { where: { clanid: clanID } });
+}
+
+async function clanCheckClanName(clanID, nameString){
+	return await databaseClans.findAll({ where: { name: nameString } });
+}
+
+async function clanUpdateName(clanID, nameString){
+	return await databaseClans.update({ name: nameString }, { where: { clanid: clanID } });
+}
+
+async function updateUserdataClanID(userID, clanID = null){
+	return await databaseUsers.update({ clanid: clanID }, { where: { userid: userID } });
+}
+
+async function updateUserdataClanStatus(userID, clanStatusValue){
+	return await databaseUsers.update({ clanStatus: clanStatusValue }, { where: { userid: userID } });
+}
+
+async function clearAllUserdataClan(clanID){
+	return await databaseUsers.update({ clanid: null }, { where: { clanid: clanID } });
+}
+
+async function getAllUserdataClan(clanID){
+	return await databaseUsers.findAll({ where: { clanid: clanID } });
+}
+
 function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
 	let currentLevel = 1;
 	if (user.roles.cache.has(roleSupportID))
@@ -366,6 +438,7 @@ function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - с
 function syncDatabase(){
 	databaseUsers.sync({ alter: true });
 	databaseRating.sync({ alter: true });
+	databaseClans.sync({ alter: true });
 }
 
 module.exports = { 
@@ -399,5 +472,18 @@ module.exports = {
 	updateUserdataProposalCooldown,
 
 	databaseRatingRegister,
-	databaseRatingUnregister
+	databaseRatingUnregister,
+
+	clanCreate,
+	clanDelete,
+	clanGetData,
+	clanUpdateMoney,
+	clanUpdateAvatar,
+	clanUpdateLeader,
+	clanCheckClanName,
+	clanUpdateName,
+	updateUserdataClanID,
+	updateUserdataClanStatus,
+	clearAllUserdataClan,
+	getAllUserdataClan
 }

@@ -1,4 +1,4 @@
-const DEBUG = 0;
+const DEBUG = 1;
 
 const Discord = require('discord.js');
 const schedule = require('node-schedule');
@@ -144,6 +144,8 @@ const roleBannedID = '700353744226746408';
 const roleMutedChatID = '700354723236282370';
 const roleMutedVoiceID = '700355053269155963';
 
+const clanCreateCost = 1000;
+
 if(DEBUG)
   token = "ODE0MDQzOTQ1OTM1MTc1NzIw.YDYHgA.FaZvJTHJdIqia_yjtvaU0wowZCM";
 else
@@ -174,11 +176,11 @@ module.exports = {
 
   roleRanksID,
   roleRanksValue,
+  clanCreateCost,
 
   token,
   prefix,
   bot,
   schedule,
-
   DEBUG,
 }

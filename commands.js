@@ -54,6 +54,7 @@ const { civilizations,
         proposalChannelID } = require('./config.js');
 const { catImage,
         dogImage } = require('./url.js');
+const { clanManager } = require('./clans.js');
 
 function draft(robot, message, args) {
     if(args[0] == "ffa"){
@@ -297,7 +298,7 @@ async function newgameVoting(robot, message, args){
         `__**Баны наций**__: *добавьте эмодзи нации под этим сообщением; если проголосует большинство, то нация окажется в бане.*`,     // 9
 
         `================================
-        ⏰  **На голосование отводится 120 секунд!**
+        ⏰  **На голосование отводится 150 секунд!**
         📌  **Если вы готовы, нажмите эмодзи ниже.**`                                                                                   // 10
     ];
     messageContentListVotesLength = messageBeginContentMid.length;
@@ -368,7 +369,7 @@ async function newgameVoting(robot, message, args){
     emojiResult = [];
     argsForDraft = [4];
     for(i in messageContentListVotes){
-        collectorList[i] = await messageContentListVotes[i].createReactionCollector(trueFilter, {time: 155000});     // +35 сек
+        collectorList[i] = await messageContentListVotes[i].createReactionCollector(trueFilter, {time: 185000});     // +35 сек
         collectorList[i].on('collect', (reaction, user) => {
             if(!(filter(reaction, user))){
                 messageID = reaction.message.id;
@@ -469,10 +470,6 @@ async function karma(robot, message, args){
     }
 }
 
-async function test(robot, message, args){
-    if(!hasPermissionLevel(message.member, 5)) return;
-}
-
 async function bonus(robot, message, args){
     userID = message.author.id;
     userdata = await getUserdata(userID);
@@ -481,7 +478,7 @@ async function bonus(robot, message, args){
     currentDate = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 0, 0, 0, 0);
     let deltaDays = 1;
     if(bonusDate)
-        deltaDays = (currentDate - bonusDate)/(1000*86400);
+        deltaDays = Math.floor((currentDate - bonusDate)/(1000*86400));
     if(deltaDays == 0)
         return message.channel.send(getEmbed_Error("Попробуйте завтра."));
 
@@ -576,6 +573,10 @@ async function proposal(robot, message, args){
     await updateUserdataProposalCooldown(message.author.id, currentDate);
     await voteMessage.react("<:Yes:808418109710794843>");
     await voteMessage.react("<:No:808418109319938099>");
+}
+
+async function test(robot, message, args){
+    if(!hasPermissionLevel(message.member, 5)) return;
 }
 
 var commands =
@@ -754,6 +755,11 @@ var commands =
         name: ["proposal", "offer"],
         out: proposal,
         about: "Ввести предложение на сервер (сообщение в специализированный канал)"
+    },
+    {
+        name: ["clan", "clans"],
+        out: clanManager,
+        about: "Интерфейс кланов"
     },
 ]
 
