@@ -15,7 +15,8 @@ const { syncDatabase,
         getAllUserdataBanned,
         getAllUserdataMuted,
         getAllUserdataNoChat,
-        hasPermissionLevel } = require('./database.js');
+        hasPermissionLevel,
+        saveDatabases } = require('./database.js');
 const { getEmbed_Ready,
         getEmbed_MemberAdd,
         getEmbed_UnknownError } = require('./embedMessages.js');
@@ -56,6 +57,8 @@ bot.on("ready", async () => {
                 else
                     administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(userdata.userid); }));
             }
+        schedule.scheduleJob('* 0 * * *', saveDatabases());
+        schedule.scheduleJob('* 12 * * *', saveDatabases());
         await bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
     } catch (errorOnReady) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorOnReady"));
@@ -99,7 +102,6 @@ bot.on("guildMemberAdd", async (member) => {
 bot.on('message', async (message) => {
     if (message.author.bot || (message.guild == null) || !message.content.startsWith(prefix))
         return;
-
     if(DEBUG){
         if(message.channel.id != "716283743047909387")      // test-channel
             return;

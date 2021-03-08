@@ -701,6 +701,15 @@ function getEmbed_ClanInfo(author, clanID, clanRating, clanMoney, clanLeaderID, 
     return embedMsg;
 }
 
+function getEmbed_Save(author){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#63FF73")
+        .setTitle('🤖 База данных успешно сохранена.')
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
 module.exports = {
     getEmbed_NoVoice,
     getEmbed_WrongNumber,
@@ -741,6 +750,7 @@ module.exports = {
     getEmbed_CatImage,
     getEmbed_DogImage,
     getEmbed_Proposal,
-    getEmbed_ClanInfo
+    getEmbed_ClanInfo,
+    getEmbed_Save
 }
 

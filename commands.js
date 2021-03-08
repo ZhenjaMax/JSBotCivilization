@@ -25,7 +25,8 @@ const { getEmbed_Avatar,
         getEmbed_Money,
         getEmbed_Bonus,
         getEmbed_BiasList,
-        getEmbed_Proposal } = require('./embedMessages.js');
+        getEmbed_Proposal,
+        getEmbed_Save } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
 const { getUserdata,
@@ -40,7 +41,8 @@ const { getUserdata,
         setUserdataBonusStreak,
         updateUserdataBonusCooldown,
         updateUserdataRating,
-        updateUserdataProposalCooldown } = require('./database.js');
+        updateUserdataProposalCooldown,
+        saveDatabases } = require('./database.js');
 const { ratingHandler } = require('./rating.js');
 const { banAdm,
         unbanAdm,
@@ -49,7 +51,6 @@ const { banAdm,
         nochatAdm,
         unchatAdm,
         pardonAdm } = require('./administration.js');
-const { String } = require('./functions.js');
 const { civilizations,
         proposalChannelID } = require('./config.js');
 const { catImage,
@@ -192,7 +193,7 @@ async function dislike(robot, message, args){
         authorData = await getUserdata(authorID);
         dislikeDate = authorData.dislikeCooldown;
         currentDate = new Date();
-        if(dislikeDate)    //
+        if(dislikeDate)
             if((dislikeDate.getDate() == currentDate.getDate()) && (dislikeDate.getMonth() == currentDate.getMonth()))
                 return message.channel.send(getEmbed_Error("Попробуйте завтра."));
 
@@ -579,6 +580,12 @@ async function test(robot, message, args){
     if(!hasPermissionLevel(message.member, 5)) return;
 }
 
+async function save(robot, message, args){
+    if(!hasPermissionLevel(message.member, 5)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
+    await saveDatabases();
+    return await message.channel.send(getEmbed_Save(message.author));
+}
+
 var commands =
 [
     {
@@ -607,12 +614,12 @@ var commands =
         about: "Подбросить монетку"
     },
     {
-        name: ["dice", "die", "roll", "random", "d", "rand"],
+        name: ["dice", "die", "roll", "random", "rand"],
         out: dice,
         about: "Подбросить игральную кость"
     },
     {
-        name: ["profile", "p", "user"],
+        name: ["profile", "p", "user", "stats"],
         out: profile,
         about: "Профиль игрока"
     },
@@ -760,6 +767,11 @@ var commands =
         name: ["clan", "clans"],
         out: clanManager,
         about: "Интерфейс кланов"
+    },
+    {
+        name: ["save"],
+        out: save,
+        about: "Сохранить базу данных"
     },
 ]
 

@@ -1,5 +1,6 @@
 // ЗДЕСЬ ПРОИСХОДИТ ТОЛЬКО ВЗАИМОДЕЙСТВИЕ С БАЗОЙ ДАННЫХ,
 // В ТОЧНОСТИ - ИМПОРТ И ЭКСПОРТ, СОЗДАНИЕ И УДАЛЕНИЕ.
+// UPD: СОХРАНЕНИЕ КОПИЙ
 // НЕ НУЖНО ВКЛЮЧАТЬ СЮДА ОСТАЛЬНЫЕ ВЗАИМОДЕЙСТВИЯ.
 
 // DataGeneral
@@ -16,7 +17,8 @@ const { bot,
 		roleSupportID,
 		roleBannedID,
 		ownerID } = require('./config.js');
-
+const { String } = require('./functions.js');
+const { copyFile } = require("fs/promises");
 
 const databaseUsersSequelize = new Sequelize('database', 'user', 'password', {
 	host: 		'localhost',
@@ -441,6 +443,16 @@ function syncDatabase(){
 	databaseClans.sync({ alter: true });
 }
 
+async function saveDatabases(){
+	const dbList = ["databaseUsers", "databaseRating", "databaseClans"]
+    currentDate = new Date();
+	for(db of dbList)
+        await copyFile('{0}.sqlite'.format(db), './db_backups/{0}_{1}-{2}-{3}_{4}-{5}.sqlite'.format(db, currentDate.getFullYear(), currentDate.getMonth()+1, 
+			currentDate.getDate(), currentDate.getHours(), currentDate.getMinutes()));
+    console.log("[{0}-{1}-{2} {3}:{4}:{5}] Databases was successfully saved.".format(currentDate.getFullYear(), currentDate.getMonth()+1, 
+        currentDate.getDate(), currentDate.getHours(), currentDate.getMinutes(), currentDate.getSeconds()));
+}
+
 module.exports = { 
 	getUserdata,
 	createUserdata,
@@ -485,5 +497,7 @@ module.exports = {
 	updateUserdataClanID,
 	updateUserdataClanStatus,
 	clearAllUserdataClan,
-	getAllUserdataClan
+	getAllUserdataClan,
+
+	saveDatabases
 }
