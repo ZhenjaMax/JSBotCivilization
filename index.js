@@ -24,7 +24,7 @@ const { unbanAuto,
         unmuteAuto,
         unchatAuto } = require('./administration.js');
 administrationJobs = [];
-
+dbShedule = [];
 bot.on("ready", async () => {
     syncDatabase();
     if(DEBUG){
@@ -57,8 +57,8 @@ bot.on("ready", async () => {
                 else
                     administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(userdata.userid); }));
             }
-        schedule.scheduleJob('* 0 * * *', saveDatabases());
-        schedule.scheduleJob('* 12 * * *', saveDatabases());
+        dbShedule.push(schedule.scheduleJob('0 0 0 * * *', function(){saveDatabases();}));
+        dbShedule.push(schedule.scheduleJob('0 0 12 * * *', function(){saveDatabases();}));
         await bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
     } catch (errorOnReady) {
         return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorOnReady"));
