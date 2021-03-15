@@ -3,7 +3,12 @@ const { String,
         getDateRus, 
         getRandomHexBrightString,
         randomInteger} = require('./functions.js');
-const { roleRanksValue } = require('./config.js');
+const { roleRanksValue,
+        FFARoleID,
+        teamersRoleID, 
+        clanCreateCost, 
+        clanRenameCost,
+        clanChangeColorCost } = require('./config.js');
 
 function getEmbed_NoVoice() {
     const embedMsg = new Discord.MessageEmbed()
@@ -109,9 +114,9 @@ function getEmbed_Profile(user, userData, author) {
     if(userData.clanid){
         clanString = "<@&{0}>".format(userData.clanid);
         if(userData.clanStatus == 2)
-            clanString += " (👑 лидер клана)";
+            clanString += "\n(👑 лидер клана)";
         if(userData.clanStatus == 1)
-            clanString == " (🛡️ модератор клана)";
+            clanString == "\n(🛡️ модератор клана)";
     }
     const embedMsg = new Discord.MessageEmbed()
         .setTitle("👥 Профиль игрока")
@@ -119,7 +124,7 @@ function getEmbed_Profile(user, userData, author) {
             { name: 'Никнейм:', value: user.toString(), inline: true },
             { name: '🪙 Деньги:', value: userData.money, inline: true },
             { name: '🎩 Лайки/Дизлайки', value: `👍 ${userData.likes} / ${userData.dislikes} 👎`, inline: true },
-            { name: '💧 Карма:', value: userData.clanid ? "" + "  👼" : (userData.karma == 0 ? userData.karma + "  😈" : userData.karma), inline: true },
+            { name: '💧 Карма:', value: userData.karma == 100 ? userData.karma + "  👼" : (userData.karma == 0 ? userData.karma + "  😈" : userData.karma), inline: true },
             { name: '📈 Рейтинг:', value: "Общий: {0}\nFFA: {1}\nTeamers: {2}".format(userData.rating, userData.ratingffa, userData.ratingteam), inline: true },
             { name: '🔎 Обзор игр:', value: 
             `Победы/поражения: ${userData.wins} / ${userData.defeats} 
@@ -562,25 +567,25 @@ function getEmbed_Karma(user, karmaValue, author){
 function getEmbed_Money(user, moneyValue, author, payment = false){
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#FFD500")
-        .setTitle("🪙 Изменение баланса");
+        .setTitle("💰 Изменение баланса");
         if(payment == false)
             embedMsg
                 .addFields(
                     { name: 'Игрок:', value: user.toString(), inline: true },
-                    { name: 'Новое значение:', value: moneyValue, inline: true },
+                    { name: 'Новое значение:', value: moneyValue + " 🪙", inline: true },
                 )
                 .setFooter("Администратор " + author.tag, author.avatarURL());
         else
             embedMsg
                 .addFields(
                     { name: 'Отправитель:', value: author.toString(), inline: true },
-                    { name: 'Было:', value: payment[0][0], inline: true },
-                    { name: 'Стало:', value: payment[0][1], inline: true }
+                    { name: 'Было:', value: payment[0][0] + " 🪙", inline: true },
+                    { name: 'Стало:', value: payment[0][1] + " 🪙", inline: true }
                 )
                 .addFields(
                     { name: 'Получатель:', value: user.toString(), inline: true },
-                    { name: 'Было:', value: payment[1][0], inline: true },
-                    { name: 'Стало:', value: payment[1][1], inline: true }
+                    { name: 'Было:', value: payment[1][0] + " 🪙", inline: true },
+                    { name: 'Стало:', value: payment[1][1] + " 🪙", inline: true }
                 )
                 .setFooter(author.tag, author.avatarURL());
     return embedMsg;
@@ -680,24 +685,128 @@ function getEmbed_Proposal(author, proposalString){
     return embedMsg;
 }
 
-function getEmbed_ClanInfo(author, clanID, clanRating, clanMoney, clanLeaderID, clanModerators, clanMemberCount, clanAvatarURL){
+function getEmbed_ClanInfo(author, clanID, clanRating, clanMoney, clanLeaderID, clanModerators, clanMemberCount, clanAvatarURL, clanDescription, clanColor){
     clanModeratorsString = "";
     for(moder of clanModerators)
         clanModeratorsString += "<@!{0}>\n".format(moder);
+    if(clanModeratorsString.length == 0)
+        clanModeratorsString = "нет";
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Информация о клане")
+        .addFields(
+            { name: 'Название:',           value: "<@&{0}>".format(clanID), inline: true },
+            { name: '📈 Рейтинг:',         value: clanRating, inline: true },
+            { name: '🪙 Казна:',             value: clanMoney, inline: true },
+            { name: '👑 Лидер клана:',     value: "<@!{0}>".format(clanLeaderID), inline: true },
+            { name: '🛡 Модераторы клана:', value: clanModeratorsString, inline: true },
+            { name: 'Число участников:',    value: clanMemberCount, inline: true },
+            { name: '📜 Описание:',            value: clanDescription ? clanDescription : "нет", inline: false },
+        )
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    if(clanAvatarURL)
+        embedMsg.setImage(clanAvatarURL);
+    return embedMsg;
+}
+
+function getEmbed_ClanSet(clanName, deleteFlag = false, clanColor = false){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor ? clanColor : "#74a5d6")
+        if(deleteFlag)
+            embedMsg
+                .setTitle("🏰 Удаление клана")
+                .setDescription("Вы действительно хотите удалить клан <@&{0}> ?\n🚫 **Это действие нельзя отменить!**\n\nДля подтверждения, нажмите на нужный эмодзи ниже.\nУ вас есть 30 секунд на подтверждение.".format(clanName));
+        else
+            embedMsg
+                .setTitle("🏰 Создание клана")
+                .setDescription("Вы действительно хотите создать клан **«{0}»** ?\nЭто стоит {1} 🪙 монет.\n\nДля подтверждения, нажмите на нужный эмодзи ниже.\nУ вас есть 30 секунд на подтверждение.".format(clanName, clanCreateCost));
+    return embedMsg;
+}
+
+function getEmbed_ClanCreate(clanID, costValue, author){
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#74a5d6")
-        .setTitle("🔨 Информация о клане")
-        .addFields(
-            { name: 'Название:', value: "<@&{0}>".format(clanID), inline: true },
-            { name: '📈 Рейтинг:', value: clanRating, inline: true },
-            { name: '🪙 Казна:', value: clanMoney, inline: true },
-            { name: '👑 Лидер клана:', value: "<@!{0}>".format(clanLeaderID), inline: true },
-            { name: '🛡 Модераторы клана:', value: clanModeratorsString, inline: true },
-            { name: 'Число участников:', value: clanMemberCount, inline: true }
-        )
-        .setFooter(author.tag, author.avatarURL());
-    if(clanAvatarURL)
-        embedMsg.setThumbnail(clanAvatarURL);
+        .setTitle("🏰 Создание клана")
+        .setDescription("**Вы создали клан** <@&{0}>! 🎉\nТеперь вы являетесь 👑 Лидером клана.\n\nВы потратили {1} 🪙 монет.".format(clanID, costValue))
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanDelete(clanName, author, clanColor, administrationFlag = false){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Удаление клана")
+        .setDescription("Вы удалили клан **«{0}»** ! 🚫\nКанал клана и роль клана были удалены.\n".format(clanName))
+        .setFooter(administrationFlag ? "Администратор " + author.tag : author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanTimeout(author, deleteFlag = false, clanColor = false){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor ? clanColor : "#74a5d6")
+        .setTitle(deleteFlag ? "🏰 Удаление клана" : "🏰 Создание клана")
+        .setDescription("⏰ Время для подтверждения действия истекло.")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanCancel(author, deleteFlag = false, clanColor = false){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor ? clanColor : "#74a5d6")
+        .setTitle(deleteFlag ? "🏰 Удаление клана" : "🏰 Создание клана")
+        .setDescription("<:No:808418109319938099> Подтверждение действия отклонено.")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanDescription(author, descriptionString, clanColor){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Изменение описания клана")
+        .setDescription(descriptionString ? "**Описание клана успешно изменено.** 📜\n**Новое описание клана:**\n{0}".format(descriptionString) : "📜 **Описание клана успешно сброшено.**")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanAvatar(author, url, clanColor){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Изменение изображения клана")
+        .setDescription(url ? "**Изображение клана успешно изменено.** 🏞️" : "Изображение клана успешно сброшено. 🏞️")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    if(url)
+        embedMsg.setImage(url);
+    return embedMsg;
+}
+
+function getEmbed_ClanColor(author, clanColor, confirmCode){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Изменение цвета клана");
+    if(confirmCode == 0)
+        embedMsg.setDescription("Вы действительно хотите поменять цвет клана? 🎨\nНовый цвет представлен слева.\nЭто стоит {0} 🪙 монет.\n\nДля подтверждения, нажмите на нужный эмодзи ниже.\nУ вас есть 30 секунд на подтверждение.".format(clanChangeColorCost));
+    else if(confirmCode == 1)
+        embedMsg
+            .setDescription("**Цвет клана был успешно изменён.** 🎨")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else if(confirmCode == -1)
+        embedMsg
+            .setDescription("<:No:808418109319938099> Подтверждение действия отклонено.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else
+        embedMsg
+            .setDescription("⏰ Время для подтверждения действия истекло.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
     return embedMsg;
 }
 
@@ -707,6 +816,174 @@ function getEmbed_Save(author){
         .setTitle('🤖 База данных успешно сохранена.')
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanRename(author, clanName, newClanName, clanColor, confirmCode){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Изменение названия клана");
+    if(confirmCode == 0)
+        embedMsg.setDescription("Вы действительно хотите переименовать клан\n**«{0}»** в **«{1}»** ? ✍️\nЭто стоит {2} 🪙 монет.\n\nДля подтверждения, нажмите на нужный эмодзи ниже.\nУ вас есть 30 секунд на подтверждение.".format(clanName, newClanName, clanRenameCost));
+    else if(confirmCode == 1)
+        embedMsg
+            .setDescription("Название вашего клана было изменено на **«{0}»**. ✍️\nКлан потратил из казны {1} 🪙 монет.".format(newClanName, clanRenameCost))
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else if(confirmCode == -1)
+        embedMsg
+            .setDescription("<:No:808418109319938099> Подтверждение действия отклонено.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else
+        embedMsg
+            .setDescription("⏰ Время для подтверждения действия истекло.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanTransfer(author, clanID, userTransferID, clanColor, confirmCode){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Передача клана");
+    if(confirmCode == 0)
+        embedMsg.setDescription("Вы действительно хотите сделать новым лидером клана <@&{0}> игрока <@!{1}> ?\n🚫 **Это действие нельзя отменить!**\n\nДля подтверждения, нажмите на нужный эмодзи ниже.\nУ вас есть 30 секунд на подтверждение.".format(clanID, userTransferID));
+    else if(confirmCode == 1)
+        embedMsg
+            .setDescription("Теперь <@!{0}> - новый 👑 лидер клана.".format(userTransferID))
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else if(confirmCode == -1)
+        embedMsg
+            .setDescription("<:No:808418109319938099> Подтверждение действия отклонено.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else
+        embedMsg
+            .setDescription("⏰ Время для подтверждения действия истекло.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanJoin(author, clanID, clanColor, confirmCode, clanModerator = false){
+    userID = author.id;
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Добавление нового участника в клан");
+    if(confirmCode == 0)
+        embedMsg.setDescription("Игрок <@!{0}> хочет вступить в клан <@&{1}> !\nЛидер клана или любой модератор клана должен принять решение.\n\nДля подтверждения, нажмите на нужный эмодзи ниже.\nУ вас есть 120 секунд на подтверждение.".format(userID, clanID));
+    else if(confirmCode == 1)
+        embedMsg
+            .setDescription("Теперь <@!{0}> - новый участник клана. 🥳".format(userID))
+            .setFooter(clanModerator.tag, clanModerator.avatarURL())
+            .setTimestamp();
+    else if(confirmCode == -1)
+        embedMsg
+            .setDescription("<:No:808418109319938099> Подтверждение действия отклонено.")
+            .setFooter(clanModerator.tag, clanModerator.avatarURL())
+            .setTimestamp();
+    else
+        embedMsg
+            .setDescription("⏰ Время для подтверждения действия истекло.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanInvite(author, userInviteID, clanID, clanColor, confirmCode){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(clanColor)
+        .setTitle("🏰 Приглашение нового участника в клан");
+    if(confirmCode == 0)
+        embedMsg.setDescription("Игрок <@!{0}> приглашается в клан <@&{1}> !\nИгрок должен принять решение.\n\nДля подтверждения, нажмите на нужный эмодзи ниже.\nУ вас есть 120 секунд на подтверждение.".format(userInviteID, clanID));
+    else if(confirmCode == 1)
+        embedMsg
+            .setDescription("Теперь <@!{0}> - новый участник клана. 🥳".format(userInviteID))
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else if(confirmCode == -1)
+        embedMsg
+            .setDescription("<:No:808418109319938099> Подтверждение действия отклонено игроком.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    else
+        embedMsg
+            .setDescription("⏰ Время для подтверждения действия истекло.")
+            .setFooter(author.tag, author.avatarURL())
+            .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanMoney(author, clanID, clanBefore, clanAfter, clanColor){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🏰 Изменение казны клана")
+        .setColor(clanColor)
+        .addFields(
+            { name: (clanAfter >= clanBefore) ? 'Положил в казну:' : 'Забрал из казны:', value: author.toString(), inline: true },
+            { name: 'Было:', value: clanBefore + " 🪙", inline: true },
+            { name: 'Стало:', value: clanAfter + " 🪙", inline: true }
+        )
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_ClanLeave(author, userID, clanID, clanColor){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🏰 Изменение состава участников клана")
+        .setColor(clanColor)
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(author.id == userID ? "Игрок <@!{0}> покинул клан <@&{1}>.".format(userID, clanID) : "Игрок <@!{0}> был изгнан из <@&{1}> модератором клана <@!{2}>.".format(userID, clanID, author.id));
+    return embedMsg;
+}
+
+function getEmbed_ClanPromote(author, userID, clanID, clanColor, promoteStatus){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle(promoteStatus ? "🏰 Повышение участника клана" : "🏰 Понижение участника клана")
+        .setColor(clanColor)
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(promoteStatus ? "Игрок <@!{0}> был повышен до модератора клана <@&{1}>.".format(userID, clanID) : "Игрок <@!{0}> был разжалован до участника клана <@&{1}>.".format(userID, clanID));
+    return embedMsg;
+}
+
+function getEmbed_ClanList(author, clansID, clansLeader){
+    descriptionString = "";
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🏰 Список кланов сервера")
+        .setColor("#5395d7")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    if(clansID.length == 0)
+        embedMsg.setDescription("На сервере нет кланов! 🏰\nВы можете основать первый клан на сервере.");
+    else{
+        for(i in clansID)
+            descriptionString += ("**{0}.** <@&{1}> | Лидер 👑 <@!{2}>\n".format(Number(i)+1, clansID[i], clansLeader[i]));
+        embedMsg.setDescription(descriptionString);
+    }
+    return embedMsg;
+}
+
+function getEmbed_FFARole(author, giveRole){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🗿 Выдача роли FFA")
+        .setColor("#428ff4")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(FFARoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(FFARoleID));
+    return embedMsg;
+}
+
+function getEmbed_TeamersRole(author, giveRole){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🐲 Выдача роли Teamers")
+        .setColor("#35f00f")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(teamersRoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(teamersRoleID));
     return embedMsg;
 }
 
@@ -751,6 +1028,23 @@ module.exports = {
     getEmbed_DogImage,
     getEmbed_Proposal,
     getEmbed_ClanInfo,
-    getEmbed_Save
+    getEmbed_ClanSet,
+    getEmbed_ClanCreate,
+    getEmbed_ClanDelete,
+    getEmbed_ClanTimeout,
+    getEmbed_ClanCancel,
+    getEmbed_ClanDescription,
+    getEmbed_ClanAvatar,
+    getEmbed_ClanColor,
+    getEmbed_Save,
+    getEmbed_ClanRename,
+    getEmbed_ClanTransfer,
+    getEmbed_ClanMoney,
+    getEmbed_ClanJoin,
+    getEmbed_ClanLeave,
+    getEmbed_ClanPromote,
+    getEmbed_ClanInvite,
+    getEmbed_ClanList,
+    getEmbed_FFARole,
+    getEmbed_TeamersRole,
 }
-

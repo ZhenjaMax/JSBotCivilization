@@ -73,8 +73,10 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 	newCooldown:	{ type: Sequelize.DATE },
 	proposalCooldown:{type: Sequelize.DATE },
 
-	clanid:			{ type: Sequelize.INTEGER },													// ID роли клана
-	clanStatus:		{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },		// 0 - игрок, 1 - модератор, 2 - создатель клана
+	clanid:			{ type: Sequelize.STRING },													// ID роли клана
+	clanStatus:		{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },	// 0 - игрок, 1 - модератор, 2 - создатель клана
+	clanJoinCooldown:{type: Sequelize.DATE },
+	clanInviteCooldown:{type: Sequelize.DATE },
 });
 
 const databaseRating = databaseRatingSequelize.define('users', {
@@ -94,8 +96,10 @@ const databaseClans = databaseClansSequelize.define('users', {
 	name:			{ type: Sequelize.STRING, 	unique: true },
 	leaderid:		{ type: Sequelize.STRING, 	unique: true },
 	textchannelid:	{ type: Sequelize.STRING, 	unique: true },
-	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, allowNull: false },
 	avatarURL:		{ type: Sequelize.STRING},
+	description:	{ type: Sequelize.STRING},
+	color:			{ type: Sequelize.STRING,	defaultValue: "#5395d7" },
 });
 
 async function getUserdata(userID){
@@ -374,7 +378,8 @@ async function clanCreate(userID, roleID, nameString, textChannelID){
 		clanid: roleID,
 		name: nameString,
 		leaderid: userID,
-		textchannelid: textChannelID
+		textchannelid: textChannelID,
+		color: "#5395d7",
 	});
 }
 
@@ -398,12 +403,20 @@ async function clanUpdateLeader(clanID, userID){
 	return await databaseClans.update({ leaderid: userID }, { where: { clanid: clanID } });
 }
 
-async function clanCheckClanName(clanID, nameString){
+async function clanCheckClanName(nameString){
 	return await databaseClans.findAll({ where: { name: nameString } });
 }
 
 async function clanUpdateName(clanID, nameString){
 	return await databaseClans.update({ name: nameString }, { where: { clanid: clanID } });
+}
+
+async function clanUpdateDescription(clanID, descriptionString){
+	return await databaseClans.update({ description: descriptionString }, { where: { clanid: clanID } });
+}
+
+async function clanUpdateColor(clanID, colorString){
+	return await databaseClans.update({ color: colorString }, { where: { clanid: clanID } });
 }
 
 async function updateUserdataClanID(userID, clanID = null){
@@ -414,8 +427,40 @@ async function updateUserdataClanStatus(userID, clanStatusValue){
 	return await databaseUsers.update({ clanStatus: clanStatusValue }, { where: { userid: userID } });
 }
 
+async function updateUserdataJoinCooldown(userID, currentDate){
+	try{
+		let userdata = await getUserdata(userID);
+		if (!userdata){
+			await createUserdata(userID);
+			userdata = await getUserdata(userID);
+		}
+		return await databaseUsers.update({ clanJoinCooldown: currentDate }, { where: { userid: userID } });
+	} catch (errorUpdateUserdataJoinCooldown){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataJoinCooldown"));
+	}
+}
+
+async function updateUserdataInviteCooldown(userID, currentDate){
+	try{
+		let userdata = await getUserdata(userID);
+		if (!userdata){
+			await createUserdata(userID);
+			userdata = await getUserdata(userID);
+		}
+		return await databaseUsers.update({ clanInviteCooldown: currentDate }, { where: { userid: userID } });
+	} catch (errorUpdateUserdataInviteCooldown){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataInviteCooldown"));
+	}
+}
+
 async function clearAllUserdataClan(clanID){
-	return await databaseUsers.update({ clanid: null }, { where: { clanid: clanID } });
+	await databaseUsers.update({ clanStatus: 0 }, { where: { clanid: clanID } });
+	await databaseUsers.update({ clanid: null }, { where: { clanid: clanID } });
+	return;
+}
+
+async function getAllClans(){
+	return await databaseClans.findAll();
 }
 
 async function getAllUserdataClan(clanID){
@@ -498,6 +543,11 @@ module.exports = {
 	updateUserdataClanStatus,
 	clearAllUserdataClan,
 	getAllUserdataClan,
+	clanUpdateDescription,
+	clanUpdateColor,
+	updateUserdataJoinCooldown,
+	updateUserdataInviteCooldown,
+	getAllClans,
 
-	saveDatabases
+	saveDatabases,
 }
