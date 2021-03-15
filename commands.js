@@ -26,7 +26,9 @@ const { getEmbed_Avatar,
         getEmbed_Bonus,
         getEmbed_BiasList,
         getEmbed_Proposal,
-        getEmbed_Save } = require('./embedMessages.js');
+        getEmbed_Save,
+        getEmbed_FFARole,
+        getEmbed_TeamersRole, } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger } = require('./functions.js');
 const { getUserdata,
@@ -52,7 +54,9 @@ const { banAdm,
         unchatAdm,
         pardonAdm } = require('./administration.js');
 const { civilizations,
-        proposalChannelID } = require('./config.js');
+        proposalChannelID,
+        FFARoleID,
+        teamersRoleID, } = require('./config.js');
 const { catImage,
         dogImage } = require('./url.js');
 const { clanManager } = require('./clans.js');
@@ -536,9 +540,9 @@ async function money(robot, message, args){
                 return message.channel.send(getEmbed_Error("Укажите пользователя для передачи денег."));
             sendMoneyValue = parseInteger(args[1]);
             if((sendMoneyValue == undefined) || (isNaN(sendMoneyValue)))
-                return message.channel.send(getEmbed_Error("Введите целое значение денег для передачи денег, большее 0."));
+                return message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
             if(sendMoneyValue <= 0)
-                return message.channel.send(getEmbed_Error("Введите целое значение денег для передачи денег, большее 0."));
+                return message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
             userdataSend = await getUserdata(author.id);
             userdataReceive = await getUserdata(member.id);
             if(userdataSend.money < sendMoneyValue)
@@ -584,6 +588,32 @@ async function save(robot, message, args){
     if(!hasPermissionLevel(message.member, 5)) return message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
     await saveDatabases();
     return await message.channel.send(getEmbed_Save(message.author));
+}
+
+async function teamers(robot, message, args){
+    let giveRole = true;
+    member = message.member;
+    teamersRole = await message.guild.roles.cache.get(teamersRoleID);
+    if(!member.roles.cache.has(teamersRoleID))
+        await member.roles.add(teamersRole);
+    else{
+        await member.roles.remove(teamersRole);
+        giveRole = false;
+    }
+    await message.channel.send(getEmbed_TeamersRole(message.author, giveRole));
+}
+
+async function ffa(robot, message, args){
+    let giveRole = true;
+    member = message.member;
+    FFARole = await message.guild.roles.cache.get(FFARoleID);
+    if(!member.roles.cache.has(FFARoleID))
+        await member.roles.add(FFARole);
+    else{
+        await member.roles.remove(FFARole);
+        giveRole = false;
+    }
+    await message.channel.send(getEmbed_FFARole(message.author, giveRole));
 }
 
 var commands =
@@ -772,6 +802,16 @@ var commands =
         name: ["save"],
         out: save,
         about: "Сохранить базу данных"
+    },
+    {
+        name: ["team", "teamers"],
+        out: teamers,
+        about: "Выдать роль Teamers"
+    },
+    {
+        name: ["ffa"],
+        out: ffa,
+        about: "Выдать роль FFA"
     },
 ]
 
