@@ -2,7 +2,8 @@ const Discord = require('discord.js');
 const { getUserdata,
         updateUserdataBanned, 
         updateUserdataMuted,
-        updateUserdataNochat} = require('./database.js');
+        updateUserdataNochat,
+        updateUserdataKarma} = require('./database.js');
 const { roleBannedID,
         roleMutedChatID,
         roleMutedVoiceID,
@@ -47,6 +48,7 @@ async function banAdm(robot, message, args){
         administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unbanAuto(member.id); }));
         await message.channel.send(getEmbed_Ban(member, dateUntil, reason, message.author));
         await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Ban(member, dateUntil, reason, message.author));
+        await updateUserdataKarma(member.id, Math.max(userdata.karma - Math.floor(getTimeInSeconds(parseInt(duration[0]), duration[1]) / 3600), 0));
     } catch (errorBanAdm) {
         return message.channel.send(getEmbed_UnknownError("errorBanAdm"));
     }
@@ -110,6 +112,7 @@ async function muteAdm(robot, message, args){
         administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unmuteAuto(member); }));
         await message.channel.send(getEmbed_Mute(member, dateUntil, reason, message.author));
         await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Mute(member, dateUntil, reason, message.author));
+        await updateUserdataKarma(member.id, Math.max(userdata.karma - Math.floor(getTimeInSeconds(parseInt(duration[0]), duration[1]) / 3600), 0));
     } catch (errorMuteAdm) {
         return message.channel.send(getEmbed_UnknownError("errorMuteAdm"));
     }
@@ -173,6 +176,7 @@ async function nochatAdm(robot, message, args){
         administrationJobs.push(schedule.scheduleJob(dateUntil, async function (){ await unchatAuto(member); }));
         await message.channel.send(getEmbed_Nochat(member, dateUntil, reason, message.author));
         await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Nochat(member, dateUntil, reason, message.author));
+        await updateUserdataKarma(member.id, Math.max(userdata.karma - Math.floor(getTimeInSeconds(parseInt(duration[0]), duration[1]) / 3600), 0));
     } catch (errorNochatAdm) {
         return message.channel.send(getEmbed_UnknownError("errorNochatAdm"));
     }

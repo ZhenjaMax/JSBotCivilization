@@ -60,7 +60,8 @@ const civilizations = new Map([
   ["<:babylon:779706266062815242>",   "Вавилон <:Babylon:779706266062815242> Хаммурапи"],
   ["k<:china:701066550433677382>",    "Китай <:China:701066550433677382> Хубилай"],
   ["k<:mongolia:701066699482464276>", "Монголия <:Mongolia:701066699482464276> Хубилай"],
-  ["<:vietnam:804417073140334603>",   "Вьетнам <:Vietnam:804417073140334603> Госпожа Чьеу"]
+  ["<:vietnam:804417073140334603>",   "Вьетнам <:Vietnam:804417073140334603> Госпожа Чьеу"],
+  ["<:portugal:825055292629844001>",  "Португалия <:Portugal:825055292629844001> Жуан III"],
 ]);
 
 const achievementsName = [
@@ -216,6 +217,7 @@ const urlLength = 192;
 
 const FFARoleID = '820789027518021642';
 const teamersRoleID = '819672819990003754';
+const tableTopRoleID = '821871088412786688';
 
 if(DEBUG)
   token = "ODE0MDQzOTQ1OTM1MTc1NzIw.YDYHgA.FaZvJTHJdIqia_yjtvaU0wowZCM";
@@ -266,4 +268,5 @@ module.exports = {
 
   FFARoleID,
   teamersRoleID,
+  tableTopRoleID,
 }

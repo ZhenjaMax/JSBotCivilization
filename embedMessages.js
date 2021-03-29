@@ -5,7 +5,8 @@ const { String,
         randomInteger} = require('./functions.js');
 const { roleRanksValue,
         FFARoleID,
-        teamersRoleID, 
+        teamersRoleID,
+        tableTopRoleID, 
         clanCreateCost, 
         clanRenameCost,
         clanChangeColorCost } = require('./config.js');
@@ -96,8 +97,8 @@ function getEmbed_MemberAdd(user) {
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#FF91D9")
         .setTitle("👋 Новый игрок!")
-        .setDescription(`Добро пожаловать на сервер, <@{0}>!
-        Не забудьте ознакомиться с информацией в канале <#806267897658998834>.`.format(user.id));
+        .setDescription(`Добро пожаловать на сервер, **<@{0}>**!
+        Не забудьте ознакомиться с информацией в канале <#806267897658998834>.`.format(user.tag));
     return embedMsg;
 }
 
@@ -118,6 +119,16 @@ function getEmbed_Profile(user, userData, author) {
         if(userData.clanStatus == 1)
             clanString == "\n(🛡️ модератор клана)";
     }
+    let banString = "нет";
+    if(userData.banned || userData.mutedvoice || userData.mutedchat){
+        banString = "";
+        if(userData.banned)
+            banString += `бан до: ${getDateRus(userData.banned)}\n`;
+        if(userData.mutedvoice)
+            banString += `войс заблокирован до: ${getDateRus(userData.mutedvoice)}\n`;
+        if(userData.mutedchat)
+            banString += `чат заблокирован до: ${getDateRus(userData.mutedchat)}\n`;
+    }
     const embedMsg = new Discord.MessageEmbed()
         .setTitle("👥 Профиль игрока")
         .addFields(
@@ -126,12 +137,12 @@ function getEmbed_Profile(user, userData, author) {
             { name: '🎩 Лайки/Дизлайки', value: `👍 ${userData.likes} / ${userData.dislikes} 👎`, inline: true },
             { name: '💧 Карма:', value: userData.karma == 100 ? userData.karma + "  👼" : (userData.karma == 0 ? userData.karma + "  😈" : userData.karma), inline: true },
             { name: '📈 Рейтинг:', value: "Общий: {0}\nFFA: {1}\nTeamers: {2}".format(userData.rating, userData.ratingffa, userData.ratingteam), inline: true },
-            { name: '🔎 Обзор игр:', value: 
-            `Победы/поражения: ${userData.wins} / ${userData.defeats} 
-            Первых мест: ${userData.winsComplete}
-            Полных поражений: ${userData.defeatsComplete}`, inline: true },
+            { name: '🔎 Статистика игр:', value: 
+            `**FFA:** ${userData.winsFFA} / ${userData.defeatsFFA}
+            **Первых мест:** ${userData.firstPlaceFFA}
+            **Teamers:** ${userData.winsTeamers} / ${userData.defeatsTeamers}`, inline: true },
             { name: '🏰 Клан:', value: clanString, inline: true },
-            { name: '🔨 Наказание:', value: "{0}".format( (userData.banned || userData.mutedvoice || userData.mutedchat) ? "да" : "нет" ), inline: true },
+            { name: '🔨 Наказание:', value: banString, inline: false },
         )
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
@@ -179,7 +190,7 @@ function getEmbed_Unban(user, author) {
 function getEmbed_Mute(user, dateUntil, reason, author) {
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#FF9100")
-        .setTitle("🔨 Мут")
+        .setTitle("🔨 Мут в голосовых каналах")
         .addFields(
             { name: 'Игрок:', value: user.toString(), inline: true },
             { name: 'Срок назания до:', value: getDateRus(dateUntil), inline: true },
@@ -192,7 +203,7 @@ function getEmbed_Mute(user, dateUntil, reason, author) {
 function getEmbed_Unmute(user, author) {
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#FF9100")
-        .setTitle("🔨 Размут")
+        .setTitle("🔨 Размут в голосовых каналах")
         .addFields(
             { name: 'Игрок:', value: user.toString(), inline: true },
         );
@@ -251,7 +262,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
             );
             if(teamFlag){       // TEAM сообщение
                 for(i = 0; i < (user.length)/2; i++){
-                    userString += "{0}\n".format(user[i].toString());
+                    userString += "**{0}**\n".format(user[i].tag);
                     ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
                         ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
                         ratingAfter[i]);
@@ -264,7 +275,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
                 );
                 userString = ""; ratingString = ""; additionalString = "";
                 for(i; i < user.length; i++){
-                    userString += "{0}\n".format(user[i].toString());
+                    userString += "**{0}**\n".format(user[i].tag);
                     ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
                         ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
                         ratingAfter[i]);
@@ -277,7 +288,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
                 );
             } else {    // FFA сообщение
                 for(i in user){
-                    userString += "{0}. {1}\n".format(Number(i)+1, user[i].toString());
+                    userString += "{0}. {1}\n".format(Number(i)+1, user[i].tag);
                     ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
                         ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
                         ratingAfter[i]);
@@ -306,7 +317,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
         );
         if(teamFlag){       // TEAM сообщение
             for(i = 0; i < (user.length)/2; i++){
-                userString += "{0}\n".format(user[i].toString());
+                userString += "**{0}**\n".format(user[i].tag);
                 ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
                     ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
                     ratingAfter[i]);
@@ -319,7 +330,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
             );
             userString = ""; ratingString = ""; additionalString = "";
             for(i; i < user.length; i++){
-                userString += "{0}\n".format(user[i].toString());
+                userString += "**{0}**\n".format(user[i].tag);
                 ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
                     ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
                     ratingAfter[i]);
@@ -332,7 +343,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
             );
         } else {    // FFA сообщение
             for(i in user){
-                userString += "{0}. {1}\n".format(Number(i)+1, user[i].toString());
+                userString += "{0}. **{1}**\n".format(Number(i)+1, user[i].tag);
                 ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
                     ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
                     ratingAfter[i]);
@@ -987,6 +998,16 @@ function getEmbed_TeamersRole(author, giveRole){
     return embedMsg;
 }
 
+function getEmbed_TableTopRole(author, giveRole){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🎲 Выдача роли TableTop")
+        .setColor("#21bbc4")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(tableTopRoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(tableTopRoleID));
+    return embedMsg;
+}
+
 module.exports = {
     getEmbed_NoVoice,
     getEmbed_WrongNumber,
@@ -1047,4 +1068,5 @@ module.exports = {
     getEmbed_ClanList,
     getEmbed_FFARole,
     getEmbed_TeamersRole,
+    getEmbed_TableTopRole,
 }
