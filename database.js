@@ -50,10 +50,19 @@ const databaseUsers = databaseUsersSequelize.define('users', {
   	ratingteam: 	{ type: Sequelize.INTEGER, 	defaultValue: 1000, 		allowNull: false },
 	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	
-	wins: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
-	defeats: 		{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
-	winsComplete: 	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
-	defeatsComplete:{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	winsFFA: 		{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	defeatsFFA: 	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	firstPlaceFFA: 	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	winsTeamers: 	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	defeatsTeamers: { type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+
+	multScience:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	multCulture:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	multDomination:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	multReligious:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	multDiplomatic:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	multScore:		{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
+	
 
 	banned: 		{ type: Sequelize.DATE },
 	mutedvoice: 	{ type: Sequelize.DATE },
@@ -65,11 +74,10 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 
 	achievements: 	{ type: Sequelize.STRING, 	defaultValue: '000000', 	allowNull: false },
 
-	bonusCooldown:	{ type: Sequelize.DATE },
 	bonusStreak:	{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
+	bonusCooldown:	{ type: Sequelize.DATE },
 	likeCooldown:	{ type: Sequelize.DATE },
 	dislikeCooldown:{ type: Sequelize.DATE },
-
 	newCooldown:	{ type: Sequelize.DATE },
 	proposalCooldown:{type: Sequelize.DATE },
 
@@ -82,6 +90,7 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 const databaseRating = databaseRatingSequelize.define('users', {
 	gameid: 		{ type: Sequelize.INTEGER, 	allowNull: false },
 	gameType:		{ type: Sequelize.INTEGER, 	allowNull: false },					// 0 = FFA, 1 = Team
+	multType:		{ type: Sequelize.INTEGER, 	defaultValue: 0, allowNull: false}, // 0 = no,  1 = science, ... 6 = score
 	isActive:		{ type: Sequelize.INTEGER, 	defaultValue: 1, allowNull: false},	// 0 = no, 	1 = yes
 
     userid: 		{ type: Sequelize.STRING, 	allowNull: false },
@@ -291,9 +300,9 @@ async function updateUserdataBonusCooldown(userID, currentDate){
 	}
 }
 
-async function updateNewCooldownDate(userID){
+async function updateNewCooldownDate(userID, isClear = false){
 	try{
-		let newCooldownDate = new Date();
+		let newCooldownDate = isClear ? null : new Date();
 		return await databaseUsers.update({ newCooldown: newCooldownDate }, { where: { userid: userID } });
 	} catch (errorUpdateNewCooldownDate) {
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateNewCooldownDate"));
@@ -316,30 +325,62 @@ async function setUserdataBonusStreak(userID, daysValue){
 	}
 }
 
-async function updateUserdataGameStats(userID, gameValue, reverted = false){		// -1 = defeatComplete, 0 = defeat, 1 = win, 2 = winComplete
+async function updateUserdataMultStats(userID, multType, multValue, reverted = false){
+	let userdata = await getUserdata(userID);
+	if(reverted)
+		multValue *= -1;
+	switch(multType){
+		case 1:
+			await databaseUsers.update({ multScience: userdata.multScience+multValue }, {where: {userid: userID}});
+			break;
+		case 2:
+			await databaseUsers.update({ multCulture: userdata.multCulture+multValue }, {where: {userid: userID}});
+			break;
+		case 3:
+			await databaseUsers.update({ multDomination: userdata.multDomination+multValue }, {where: {userid: userID}});
+			break;
+		case 4:
+			await databaseUsers.update({ multReligious: userdata.multReligious+multValue }, {where: {userid: userID}});
+			break;
+		case 5:
+			await databaseUsers.update({ multDiplomatic: userdata.multDiplomatic+multValue }, {where: {userid: userID}});
+			break;
+		case 6:
+			await databaseUsers.update({ multScore: userdata.multScore+multValue }, {where: {userid: userID}});
+			break;
+	}
+	return;
+}
+
+async function updateUserdataGameStats(userID, isGameTypeTeamers, gameValue, reverted = false){		// -1 = defeat, 1 - win, 2 - firstPlace
 	try{
 		let userdata = await getUserdata(userID);
-		if(gameValue > 0){
-			reverted ? await databaseUsers.update({ wins: userdata.wins-1 }, { where: { userid: userID } }) : await databaseUsers.update({ wins: userdata.wins+1 }, { where: { userid: userID } });
-			if(gameValue > 1)
-				reverted ? await databaseUsers.update({ winsComplete: userdata.winsComplete-1 }, { where: { userid: userID } }) : await databaseUsers.update({ winsComplete: userdata.winsComplete+1 }, { where: { userid: userID } });
-		} else {
-			reverted ? await databaseUsers.update({ defeats: userdata.defeats-1 }, { where: { userid: userID } }) : databaseUsers.update({ defeats: userdata.defeats+1 }, { where: { userid: userID } });
+		if(!isGameTypeTeamers){ 		// FFA
 			if(gameValue < 0)
-				reverted ? await databaseUsers.update({ defeatsComplete: userdata.defeatsComplete-1 }, { where: { userid: userID } }) : await databaseUsers.update({ defeatsComplete: userdata.defeatsComplete+1 }, { where: { userid: userID } });
+				await databaseUsers.update({ defeatsFFA: userdata.defeatsFFA+1-(2*reverted) }, { where: { userid: userID } });
+			if(gameValue > 0)
+				await databaseUsers.update({ winsFFA: userdata.winsFFA+1-(2*reverted) }, { where: { userid: userID } });
+			if(gameValue > 1)
+				await databaseUsers.update({ firstPlaceFFA: userdata.firstPlaceFFA+1-(2*reverted) }, { where: { userid: userID } });
+		} else {		// Teamers
+			if(gameValue < 0)
+				await databaseUsers.update({ defeatsTeamers: userdata.defeatsTeamers+1-(2*reverted) }, { where: { userid: userID } });
+			if(gameValue > 0)
+				await databaseUsers.update({ winsTeamers: userdata.winsTeamers+1-(2*reverted) }, { where: { userid: userID } });
 		}
-	} catch (errorSetUserdataBonusStreak){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorSetUserdataBonusStreak"));
+	} catch (errorUpdateUserdataGameStats){
+		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataGameStats"));
 	}
 }
 
-async function databaseRatingRegister(newGameType, userIDArray, ratingAddArray, ratingTypedAddArray, moneyAddArray, karmaAddArray){
+async function databaseRatingRegister(newGameType, userIDArray, ratingAddArray, ratingTypedAddArray, moneyAddArray, karmaAddArray, multType = 0){
 	maxID = await databaseRating.max('gameid');
 	newGameID = maxID ? maxID+1 : 1;
 	for(i in userIDArray){
 		await databaseRating.create({
 			gameid: newGameID, 
 			gameType: newGameType,
+			multType: multType,
 			userid: userIDArray[i], 
 			ratingAdd: ratingAddArray[i], 
 			ratingTypedAdd: ratingTypedAddArray[i],
@@ -467,6 +508,10 @@ async function getAllUserdataClan(clanID){
 	return await databaseUsers.findAll({ where: { clanid: clanID } });
 }
 
+async function getAllUsersNewCooldown(){
+	return await databaseUsers.findAll({where: {newCooldown: {[Sequelize.Op.ne]: null}}})
+}
+
 function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
 	let currentLevel = 1;
 	if (user.roles.cache.has(roleSupportID))
@@ -482,7 +527,7 @@ function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - с
 	return (level <= currentLevel);
 }
 
-function syncDatabase(){
+async function syncDatabase(){
 	databaseUsers.sync({ alter: true });
 	databaseRating.sync({ alter: true });
 	databaseClans.sync({ alter: true });
@@ -507,6 +552,7 @@ module.exports = {
 	updateUserdataRating,
 	updateUserdataRatingTyped,
 	updateUserdataGameStats,
+	updateUserdataMultStats,
 	updateUserdataKarma,
 	updateUserdataLikeIncrement,
 	updateUserdataLikeCooldown,
@@ -550,4 +596,6 @@ module.exports = {
 	getAllClans,
 
 	saveDatabases,
+
+	getAllUsersNewCooldown,
 }

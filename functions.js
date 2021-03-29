@@ -75,10 +75,11 @@ function getTimeInSeconds(value, typeSymbol){
 
 function getDateRus(date){
     let hTimeDelta = 3;
-    date.setTime(date.getTime() + 1000*3600*hTimeDelta);
+    punishmentDate = new Date(date);
+    punishmentDate.setTime(punishmentDate.getTime() + 1000*3600*hTimeDelta);
     dateString = "";
-    dateString += (String(date.getDate()) + " ");
-    switch(date.getMonth()){
+    dateString += (String(punishmentDate.getDate()) + " ");
+    switch(punishmentDate.getMonth()){
         case 0:
             dateString += "января";
             break;
@@ -116,13 +117,13 @@ function getDateRus(date){
             dateString += "декабря";
             break;
     }
-    dateString += (" " + date.getFullYear() + " года,\n");
-    if((date.getHours())%24 < 10)
+    dateString += (" " + punishmentDate.getFullYear() + " года,\n");
+    if((punishmentDate.getHours())%24 < 10)
         dateString += "0"; 
-    dateString += (date.getHours()%24 + ":");
-    if(date.getMinutes() < 10)
+    dateString += (punishmentDate.getHours()%24 + ":");
+    if(punishmentDate.getMinutes() < 10)
         dateString += "0"; 
-    dateString += (date.getMinutes() + " МСК");
+    dateString += (punishmentDate.getMinutes() + " МСК");
     return dateString;
 }
 

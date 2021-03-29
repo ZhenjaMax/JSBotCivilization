@@ -23,10 +23,12 @@ const { getEmbed_Ready,
 const { unbanAuto,
         unmuteAuto,
         unchatAuto } = require('./administration.js');
+const { updateUsersRatingRole } = require('./rating.js');
+
 administrationJobs = [];
 dbShedule = [];
 bot.on("ready", async () => {
-    syncDatabase();
+    await syncDatabase();
     if(DEBUG){
         console.log(bot.user.username + " запустился в DEBUG MODE!");
         return;
@@ -88,6 +90,12 @@ bot.on("guildMemberAdd", async (member) => {
                 await member.roles.add(roleMutedChat);
                 isViolation = true;
             }
+            if(userdata.winsFFA + userdata.defeatsFFA + userdata.winsTeamers + userdata.defeatsTeamers > 0)
+                await updateUsersRatingRole([userdata.userid]);
+            if(userdata.clanid){
+                clanRole = await member.guild.roles.cache.get(clanID);
+                await member.roles.add(clanRole);
+            }
             if(!isViolation)
                 bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
             return;
@@ -114,13 +122,13 @@ bot.on('message', async (message) => {
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))
-            try{
+            //try{
                 await commands[i].out(bot, message, args);
                 if(!(command == "clean" || command == "clear"))
                     await message.delete();
-            } catch (errorOnMessage) {
-                return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
-            }
+            //} catch (errorOnMessage) {
+            //    return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
+            //}
 });
 
 bot.login(token);
