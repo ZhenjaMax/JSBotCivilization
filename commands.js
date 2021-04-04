@@ -31,7 +31,8 @@ const { getEmbed_Avatar,
         getEmbed_TableTopRole,
         getEmbed_TeamersRole, } = require('./embedMessages.js');
 const { randomInteger,
-        parseInteger } = require('./functions.js');
+        parseInteger, 
+        parsePlayers} = require('./functions.js');
 const { getUserdata,
         hasPermissionLevel,
         updateUserdataKarma,
@@ -100,12 +101,12 @@ function dice(robot, message, args){
 async function profile(robot, message, args) {
     user = message.mentions.users.first() || message.author;
     author = message.author;
-    //try{
+    try{
         userData = await getUserdata(user.id);
         return message.channel.send(getEmbed_Profile(user, userData, author));
-    //} catch (errorProfile) {
-        //return message.channel.send(getEmbed_UnknownError("errorProfile"));
-    //}
+    } catch (errorProfile) {
+        return message.channel.send(getEmbed_UnknownError("errorProfile"));
+    }
 }
 
 async function clear(robot, message, args){
@@ -438,6 +439,31 @@ async function tabletop(robot, message, args){
     await message.channel.send(getEmbed_TableTopRole(message.author, giveRole));
 }
 
+async function split(robot, message, args){
+    return;
+    voiceChannel = message.member.voice.channel;
+    if(voiceChannel == null)
+        return message.channel.send(getEmbed_NoVoice());
+    let capitansID = [message.author.id, parsePlayers(message.content)[0]];
+    if(capitansID[1] == undefined)
+        return getEmbed_Error("Необходимо указать пользователя в качестве второго капитана.");
+    if(capitansID[1] == capitansID[0])
+        return getEmbed_Error("Укажите другого игрока в качестве капитана, вы являетесь первым капитаном.");
+    userID = await message.member.voice.channel.members.keyArray();
+    if(userID.length%2 == 1)
+        return getEmbed_Error("Для разделения необходимо чётное число игроков!");
+    if(userID.length < 4)
+        return getEmbed_Error("Для разделения необходимо хотя бы 4 игрока!");
+    if(!userID.includes(capitansID[1]))
+        return getEmbed_Error("Второй капитан не присутствует в том же голосовом канале, что и вы!");
+    let teamPlayers = [[], []]
+    for(i in capitansID){
+        userID.splice(userID.indexOf(capitansID[i]), 1);
+        teamPlayers[i].push(capitansID[i]);
+    }
+    
+}
+
 var commands =
 [
     {
@@ -639,6 +665,11 @@ var commands =
         name: ["tabletop", "table"],
         out: tabletop,
         about: "Выдать роль TableTop"
+    },
+    {
+        name: ["split"],
+        out: split,
+        about: "Разделить игроков в лобби на команды"
     },
 ]
 
