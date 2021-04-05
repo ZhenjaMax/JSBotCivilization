@@ -62,7 +62,6 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 	multReligious:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	multDiplomatic:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	multScore:		{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
-	
 
 	banned: 		{ type: Sequelize.DATE },
 	mutedvoice: 	{ type: Sequelize.DATE },
@@ -106,8 +105,8 @@ const databaseClans = databaseClansSequelize.define('users', {
 	leaderid:		{ type: Sequelize.STRING, 	unique: true },
 	textchannelid:	{ type: Sequelize.STRING, 	unique: true },
 	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, allowNull: false },
-	avatarURL:		{ type: Sequelize.STRING},
-	description:	{ type: Sequelize.STRING},
+	avatarURL:		{ type: Sequelize.STRING },
+	description:	{ type: Sequelize.STRING },
 	color:			{ type: Sequelize.STRING,	defaultValue: "#5395d7" },
 });
 
@@ -162,6 +161,10 @@ async function getAllUserdataNoChat(){
 	} catch (errorGetUserdataNoChat) {
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataNoChat"));
 	}
+}
+
+async function updateUserdataDescription(userID, descriptionString){
+	return await databaseUsers.update({ description: descriptionString }, { where: { userid: userID } });
 }
 
 async function updateUserdataBanned(userID, bannedStatus){
@@ -549,6 +552,7 @@ module.exports = {
 	syncDatabase,
 	hasPermissionLevel,
 
+	updateUserdataDescription,
 	updateUserdataRating,
 	updateUserdataRatingTyped,
 	updateUserdataGameStats,

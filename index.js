@@ -27,6 +27,8 @@ const { updateUsersRatingRole } = require('./rating.js');
 
 administrationJobs = [];
 dbShedule = [];
+lastMessageContent = "";
+
 bot.on("ready", async () => {
     await syncDatabase();
     if(DEBUG){
@@ -70,8 +72,7 @@ bot.on("ready", async () => {
 
 bot.on("guildMemberAdd", async (member) => {
     try{
-        if(DEBUG)
-            return;
+        if(DEBUG) return;
         let isViolation = false;
         userdata = await checkUserSilent(member.user.id);
         if(userdata){
@@ -108,8 +109,17 @@ bot.on("guildMemberAdd", async (member) => {
 });
 
 bot.on('message', async (message) => {
-    if (message.author.bot || (message.guild == null) || !message.content.startsWith(prefix))
+    if(message.author.bot || (message.guild == null))
         return;
+    if(!message.content.startsWith(prefix)){
+        if((message.content == lastMessageContent)&&(lastMessageContent != "")){
+            message.delete();
+        } else {
+            lastMessageContent = message.content;
+        }
+        return;
+    }
+
     if(DEBUG){
         if(message.channel.id != "716283743047909387")      // test-channel
             return;
@@ -118,6 +128,7 @@ bot.on('message', async (message) => {
             if(!hasPermissionLevel(message.member, 2) || (message.channel.id == "716283743047909387"))
                 return;
     }
+
     args = message.content.trim().toLowerCase().split(" ");
     command = args.shift().slice(1);
     for(i in commands)
