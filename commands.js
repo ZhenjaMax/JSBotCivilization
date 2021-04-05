@@ -29,10 +29,10 @@ const { getEmbed_Avatar,
         getEmbed_Save,
         getEmbed_FFARole,
         getEmbed_TableTopRole,
-        getEmbed_TeamersRole, } = require('./embedMessages.js');
+        getEmbed_TeamersRole, 
+        getEmbed_ProfileDescription, } = require('./embedMessages.js');
 const { randomInteger,
-        parseInteger, 
-        parsePlayers} = require('./functions.js');
+        parseInteger,} = require('./functions.js');
 const { getUserdata,
         hasPermissionLevel,
         updateUserdataKarma,
@@ -45,7 +45,8 @@ const { getUserdata,
         updateUserdataBonusCooldown,
         updateUserdataRating,
         updateUserdataProposalCooldown,
-        saveDatabases, } = require('./database.js');
+        saveDatabases,
+        updateUserdataDescription, } = require('./database.js');
 const { ratingHandler } = require('./rating.js');
 const { banAdm,
         unbanAdm,
@@ -57,11 +58,13 @@ const { banAdm,
 const { proposalChannelID,
         FFARoleID,
         teamersRoleID, 
-        tableTopRoleID, } = require('./config.js');
+        tableTopRoleID,
+        descriptionLength, } = require('./config.js');
 const { catImage,
         dogImage } = require('./url.js');
 const { clanManager } = require('./clans.js');
-const { newgameVotingFFA } = require('./newGame.js');
+const { newgameVotingFFA,
+        split } = require('./newGame.js');
 
 function draft(robot, message, args) {
     if(args[0] == "ffa"){
@@ -439,29 +442,15 @@ async function tabletop(robot, message, args){
     await message.channel.send(getEmbed_TableTopRole(message.author, giveRole));
 }
 
-async function split(robot, message, args){
+async function description(robot, message, args){
+    descriptionString = (message.content[5] == " ") ? message.content.slice(6) : message.content.slice(13);
+    if(descriptionString.length > descriptionLength)
+        return await message.channel.send(getEmbed_Error("Превышена максимальная длина описания профиля игрока.\nМаксимальная длина: 128."));
+    if(descriptionString.length == 0)
+        descriptionString = null;
+    await updateUserdataDescription(message.author.id, descriptionString);
+    await message.channel.send(getEmbed_ProfileDescription(message.author, descriptionString));
     return;
-    voiceChannel = message.member.voice.channel;
-    if(voiceChannel == null)
-        return message.channel.send(getEmbed_NoVoice());
-    let capitansID = [message.author.id, parsePlayers(message.content)[0]];
-    if(capitansID[1] == undefined)
-        return getEmbed_Error("Необходимо указать пользователя в качестве второго капитана.");
-    if(capitansID[1] == capitansID[0])
-        return getEmbed_Error("Укажите другого игрока в качестве капитана, вы являетесь первым капитаном.");
-    userID = await message.member.voice.channel.members.keyArray();
-    if(userID.length%2 == 1)
-        return getEmbed_Error("Для разделения необходимо чётное число игроков!");
-    if(userID.length < 4)
-        return getEmbed_Error("Для разделения необходимо хотя бы 4 игрока!");
-    if(!userID.includes(capitansID[1]))
-        return getEmbed_Error("Второй капитан не присутствует в том же голосовом канале, что и вы!");
-    let teamPlayers = [[], []]
-    for(i in capitansID){
-        userID.splice(userID.indexOf(capitansID[i]), 1);
-        teamPlayers[i].push(capitansID[i]);
-    }
-    
 }
 
 var commands =
@@ -670,6 +659,11 @@ var commands =
         name: ["split"],
         out: split,
         about: "Разделить игроков в лобби на команды"
+    },
+    {
+        name: ["desc", "description"],
+        out: description,
+        about: "Установить описание в профиль игрока"
     },
 ]
 
