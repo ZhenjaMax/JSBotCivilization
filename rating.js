@@ -20,18 +20,65 @@ const { roleRanksID,
         teamersRoleID, } = require('./config.js');
 const { ratingReportsChannelID } = require('./config.js');
 
+const multTypeList = ["science", "culture", "domination", "religious", "diplomatic", "score"];
+const specialWordList = ["tie", "sub", "leave"];
+
 async function ratingHandler(robot, message, args){
-    try{
-        let users = [], playersID = parsePlayers(message.content); 
+    //try{
+        let users = [], playersID = parsePlayers(message.content),
         ratingTypedBefore = [], ratingBefore = [],  
         ratingTypedAfter = [], ratingAfter = [],   
         ratingTypedAdd = [], ratingAdd = [], 
         karmaBefore = [], karmaAdd = [],
         moneyBefore = [], moneyAdd = [];
-        playersCount = playersID.length;
-        let multType = 0;
-        multTypeList = ["science", "culture", "domination", "religious", "diplomatic", "score"];
+        let playersCount = playersID.length, 
+        multType = 0;
 
+		/*
+        let playerIndexArray = [];              // индексы всех ID игроков
+        let specialIndex = [[], [], []];        // 0 = tie, 1 = sub, 2 = leave;
+        let messageContentTemp = message.content.toLowerCase();
+        for(i in playersID){
+            let tempIndex = messageContentTemp.indexOf(String(playersID[i]));
+            playerIndexArray.push(tempIndex);
+        }
+        for(i in specialWordList){
+            let iterTemp = 0;
+            do{
+                iterTemp = messageContentTemp.indexOf(specialWordList[i], iterTemp);
+                specialIndex[i].push(iterTemp);
+                iterTemp++;
+            } while(iterTemp != 0);
+            specialIndex[i].pop();
+        }
+        playerIndexArray.push(message.content.length);
+        for(i in specialIndex)
+            for(j in specialIndex[i])
+                for(let k = 0; k < playersCount; k++)
+                    if((playerIndexArray[k] < specialIndex[i][j])&&(playerIndexArray[k+1] > specialIndex[i][j]))
+                        specialIndex[i][j] = k;
+        playerIndexArray.pop();
+        for(i in playerIndexArray)
+            playerIndexArray[i] = Number(i);
+
+        //console.log(playersID);
+        //console.log(playerIndexArray);
+        //console.log(specialIndex);
+
+        let leaveID = [], subID = [], tieID = [];
+
+        for(i in specialIndex[2])       // leave
+            leaveID.push(playersID[specialIndex[2][i]]);
+
+        for(i in specialIndex[1]){       // sub
+            subID.push(playersID[[specialIndex[1][i]], playersID[specialIndex[1][i+1]]]);
+        }
+
+        for(i in specialIndex[0]){       // tie
+
+        }
+		*/
+		
         handler = args.shift();
         switch(handler){
             case 'add':
@@ -51,18 +98,15 @@ async function ratingHandler(robot, message, args){
                 await message.channel.send(getEmbed_RatingSingleChange([user], [ratingBefore], [ratingAfter], message.author));
                 await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange([user], [ratingBefore], [ratingAfter], message.author));
                 break;
+
             case 'cc':
             case 'mult':
             case 'team':
-                if(playersCount < 2 || playersCount > 16)
-                    return message.channel.send(getEmbed_Error("Для данной команды необходимо ввести от 2 до 16 игроков."));
-                if( (handler == 'team') && (playersCount % 2) )
-                    return message.channel.send(getEmbed_Error("Для данной команды необходимо чётное число игроков."));
+                if(playersCount < 2 || playersCount > 16) return await message.channel.send(getEmbed_Error("Для данной команды необходимо ввести от 2 до 16 игроков."));
+                if((handler == 'team') && (playersCount % 2)) return await message.channel.send(getEmbed_Error("Для данной команды необходимо чётное число игроков."));
                 if(handler == "mult"){
-                    multType = args.shift().toLowerCase();
-                    multType = 1 + multTypeList.indexOf(multType);
-                    if(multType == 0)
-                        return message.channel.send(getEmbed_Error("Введите один из следующих типов победы:\nscience, culture, domination, religious, diplomatic, score."));
+                    multType = multTypeList.indexOf(args.shift().toLowerCase()) + 1;
+                    if(multType == 0) return await message.channel.send(getEmbed_Error("Введите один из следующих типов победы:\nscience, culture, domination, religious, diplomatic, score."));
                 }
                 for(let i in playersID){
                     userdata = await getUserdata(playersID[i]);
@@ -75,7 +119,7 @@ async function ratingHandler(robot, message, args){
                 ratingAfter = countRatingEloGeneral(ratingBefore, handler == 'mult', handler == 'team');
                 ratingTypedAfter = countRatingEloGeneral(ratingTypedBefore, handler == 'mult', handler == 'team');
                 for(let i in playersID){
-                    moneyAdd[i] = Math.max(Math.round(2*Math.pow(playersCount, 2) - 3*(ratingAfter[i]-ratingBefore[i])/playersCount + 10*(playersCount-1)*(Number(handler == 'mult'))), 0);  // MONEY = 2n^2 - 3d/n
+                    moneyAdd[i] = Math.max(Math.round(2*Math.pow(playersCount, 2) - 3*(ratingAfter[i]-ratingBefore[i])/playersCount + 10*(playersCount-1)*(Number(handler == 'mult'))), 0);  // MONEY = 2n^2 - 3d/n + 10n*if(mult)
                     karmaAdd[i] = Math.floor((playersCount - 1)/2*(1 + (handler == 'mult')));
                     await updateUserdataRating(playersID[i], ratingAfter[i]);
                     await updateUserdataRatingTyped(playersID[i], ratingTypedAfter[i], handler == 'team');
@@ -92,31 +136,29 @@ async function ratingHandler(robot, message, args){
                 gameID = await databaseRatingRegister(Number(handler == 'team'), playersID, ratingAdd, ratingTypedAdd, moneyAdd, karmaAdd, multType);
                 await message.channel.send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', multType, gameID, handler == 'cancel'));
                 await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', multType, gameID, handler == 'cancel'));
-                
+
                 FFARole = await message.guild.roles.cache.get(FFARoleID);
                 teamersRole = await message.guild.roles.cache.get(teamersRoleID);
                 for(let i in playersID){
                     memberRated = await message.guild.members.cache.get(playersID[i]);
-                    if(handler == "team"){
-                        if(!memberRated.roles.cache.has(teamersRoleID))
-                            await memberRated.roles.add(teamersRole);
-                    } else {
-                        if(!memberRated.roles.cache.has(FFARoleID))
-                            await memberRated.roles.add(FFARole);
-                    }
+                    if((handler == "team")&&(!memberRated.roles.cache.has(teamersRoleID)))
+                        await memberRated.roles.add(teamersRole);
+                    else if(!memberRated.roles.cache.has(FFARoleID))
+                        await memberRated.roles.add(FFARole);
                 }
                 break;
+            
             case 'cancel':
                 gameID = parseInteger(args.shift());
                 if(isNaN(gameID) || (gameID == undefined))
-                    return message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
+                    return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
                 if(gameID <= 0)
-                    return message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
+                    return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
                 gameResults = await databaseRatingUnregister(gameID);
                 if(gameResults.length == 0)
-                    return message.channel.send(getEmbed_Error("Игры с таким ID не существует!"));
+                    return await message.channel.send(getEmbed_Error("Игры с таким ID не существует!"));
                 if(gameResults[0].isActive == 0)
-                    return message.channel.send(getEmbed_Error("Игра с таким ID уже была отменена!"));
+                    return await message.channel.send(getEmbed_Error("Игра с таким ID уже была отменена!"));
                 for(i in gameResults){
                     gameResults[i] = gameResults[i].dataValues;
                     playersID[i] = gameResults[i].userid;
@@ -147,24 +189,29 @@ async function ratingHandler(robot, message, args){
                     await updateUserdataGameStats(playersID[i], gameType==1, (i==0 ? 2 : (ratingTypedAdd[i]>=0 ? 1 : -1)), true);
                 }
                 if(multType != 0)
-                    await updateUserdataMultStats(playersID[0], multType, playersID.length-1, true)
+                    await updateUserdataMultStats(playersID[0], multType, playersID.length-1, true);
                 await message.channel.send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', 0, gameID, handler == 'cancel'));
                 await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', 0, gameID, handler == 'cancel'));
                 break;
             default:
-                return message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\ncc, mult, team, set, add/change, cancel."));
+                return await message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\ncc, mult, team, set, add/change, cancel."));
         }
         if(playersID.length > 0)
-            updateUsersRatingRole(playersID);
-    } catch (errorRatingHandler){
-        message.channel.send(getEmbed_UnknownError("errorRatingHandler"));
-    }
+            await updateUsersRatingRole(playersID);
+    //} catch (errorRatingHandler){
+    //    await message.channel.send(getEmbed_UnknownError("errorRatingHandler"));
+    //}
 }
 
 async function updateUsersRatingRole(playersID){
     for(playerIterID of playersID){
         userdata = await getUserdata(playerIterID);
-        playerIterRating = userdata.rating;
+        let ratingList = [userdata.rating];
+        if(userdata.winsFFA + userdata.defeatsFFA > 0) 
+            ratingList.push(userdata.ratingffa);
+        if(userdata.winsTeamers + defeatsTeamers > 0)
+            ratingList.push(ratingteam);
+        playerIterRating = Math.max(...ratingList);
         let index = 0;
         for(index; index < roleRanksValue.length; index++)
             if(playerIterRating < roleRanksValue[index])

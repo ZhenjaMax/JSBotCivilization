@@ -63,7 +63,7 @@ const { proposalChannelID,
 const { catImage,
         dogImage } = require('./url.js');
 const { clanManager } = require('./clans.js');
-const { newgameVotingFFA,
+const { newgameVoting,
         split } = require('./newGame.js');
 
 function draft(robot, message, args) {
@@ -587,7 +587,7 @@ var commands =
     },
     {
         name: ["new", "begin"],
-        out: newgameVotingFFA,
+        out: newgameVoting,
         about: "Начать голосование за настройки и правила игры"
     },
     {

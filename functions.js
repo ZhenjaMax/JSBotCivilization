@@ -42,7 +42,12 @@ function parsePlayers(str){
     if(str == undefined)
         return [];
     regexp = /(<@!\d+>)+/g;
-    return Array.from(str.matchAll(regexp)).map(function (regexElement) {return regexElement[0].slice(3, -1)});
+    retval = Array.from(str.matchAll(regexp)).map(function (regexElement) {return regexElement[0].slice(3, -1)});
+    if(retval.length != 0)
+        return retval;
+    regexp = /(<@\d+>)+/g;
+    retval = Array.from(str.matchAll(regexp)).map(function (regexElement) {return regexElement[0].slice(2, -1)});
+    return retval;
 }
 
 function parseNumberRule(str){
@@ -134,6 +139,18 @@ function parseHexColor(str){
     return match.length == 1 ? match[0][0] : undefined;
 }
 
+function deepCopy(aObject){
+    if (!aObject)
+      return aObject;
+    let v;
+    let bObject = Array.isArray(aObject) ? [] : {};
+    for(const k in aObject){
+        v = aObject[k];
+        bObject[k] = (typeof v === "object") ? deepCopy(v) : v;
+    }
+    return bObject;
+}
+
 module.exports = { 
     getRandomHexBrightString, 
     randomInteger, 
@@ -145,5 +162,6 @@ module.exports = {
     getTimeInSeconds,
     getDateRus,
     parseHexColor,
-    rgbToHex
+    rgbToHex,
+    deepCopy,
 }

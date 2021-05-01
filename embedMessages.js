@@ -251,8 +251,9 @@ function getEmbed_Pardon(user, author) {
 
 function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, moneyAdd, karmaAdd, teamFlag, multType, gameID, isCancel){
     userString = ""; ratingString = ""; additionalString = "";
+    const embedMsg = new Discord.MessageEmbed()
     if(isCancel){
-        const embedMsg = new Discord.MessageEmbed()
+        embedMsg
             .setColor('#00FFF0')
             .setFooter("Администратор " + author.tag, author.avatarURL())
             .setTitle("📉 Отмена рейтинга")
@@ -289,7 +290,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
                 );
             } else {    // FFA сообщение
                 for(i in user){
-                    userString += "{0}. {1}\n".format(Number(i)+1, user[i].tag);
+                    userString += "{0}. **{1}**\n".format(Number(i)+1, user[i].tag);
                     ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
                         ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
                         ratingAfter[i]);
@@ -305,7 +306,7 @@ function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, mo
         return embedMsg;
 
     }
-    const embedMsg = new Discord.MessageEmbed()
+    embedMsg
         .setColor('#00FFF0')
         .setFooter("Администратор " + author.tag, author.avatarURL())
         .setTitle("📈 Изменение рейтинга");
@@ -496,6 +497,8 @@ function getEmbed_Irrel(){
         • 30-59 ход – 3/4 игроков.
         • 60+ ход – 2/3 игроков.
         • Если игрок имеет право вето: любой ход – единогласно.
+
+        Игроку позволяется вылететь **до 2 раз за игру**. После **3 вылета** хост партии имеет право не впускать игрока в игру. В таком случае игрок вынужден найти замену, иначе он считается иррелевантным и получает место в соответствии с правилом иррелевантности.
         `);
     return embedMsg;
 }
