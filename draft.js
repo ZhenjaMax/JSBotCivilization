@@ -215,7 +215,7 @@ function getDraftTeam(teamCount, rawBans){
 }
 
 function draftTeam(robot, message, args) {
-    let teamCountMin = 2, teamCountMax = 4, teamCountDefault = 2;
+    let teamCountMin = 2, teamCountMax = 5, teamCountDefault = 2;
     let teamCount = args[0];
     let rawBans = args.slice(1);
     draftList = []; bans = []; errors = [];
@@ -225,7 +225,8 @@ function draftTeam(robot, message, args) {
         "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Antu_flag-red.svg/768px-Antu_flag-red.svg.png",
         "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Antu_flag-blue.svg/768px-Antu_flag-blue.svg.png",
         "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Antu_flag-green.svg/768px-Antu_flag-green.svg.png",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Antu_flag-yellow.svg/768px-Antu_flag-yellow.svg.png"
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Antu_flag-yellow.svg/768px-Antu_flag-yellow.svg.png",
+        "https://media.discordapp.net/attachments/698295115063492758/837417222732644372/768px-Antu_flag-purple.svg.png?width=599&height=599",
     ];
     teamCountParse = parseInteger(teamCount);
     if(isNaN(teamCountParse) || (teamCountParse == undefined)){

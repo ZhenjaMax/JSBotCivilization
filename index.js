@@ -3,7 +3,6 @@ const { chatChannelID,
         roleBannedID,
         roleMutedChatID,
         roleMutedVoiceID,
-        guildID,
         token,
         prefix,
         bot,
@@ -28,6 +27,8 @@ const { updateUsersRatingRole } = require('./rating.js');
 administrationJobs = [];
 dbShedule = [];
 lastMessageContent = "";
+lastMessageAuthorID = "";
+lastMessageChannelID = "";
 
 bot.on("ready", async () => {
     await syncDatabase();
@@ -112,10 +113,12 @@ bot.on('message', async (message) => {
     if(message.author.bot || (message.guild == null))
         return;
     if(!message.content.startsWith(prefix)){
-        if((message.content == lastMessageContent)&&(lastMessageContent != "")){
-            message.delete();
+        if((message.content == lastMessageContent)&&(lastMessageContent != "")&&(message.author.id == lastMessageAuthorID)&&(message.channel.id == lastMessageChannelID)){
+            await message.delete();
         } else {
             lastMessageContent = message.content;
+            lastMessageChannelID = message.channel.id;
+            lastMessageAuthorID = message.author.id;
         }
         return;
     }
@@ -135,8 +138,6 @@ bot.on('message', async (message) => {
         if(commands[i].name.includes(command))
             //try{
                 await commands[i].out(bot, message, args);
-                if(!(command == "clean" || command == "clear"))
-                    await message.delete();
             //} catch (errorOnMessage) {
             //    return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
             //}
