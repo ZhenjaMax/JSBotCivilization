@@ -249,7 +249,170 @@ function getEmbed_Pardon(user, author) {
     return embedMsg;
 }
 
-function getEmbed_RatingSingleChange(user, ratingBefore, ratingAfter, author, moneyAdd, karmaAdd, teamFlag, multType, gameID, isCancel){
+function getEmbed_RatingSingleChange(playerStats, author){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#00FFF0')
+        .setFooter("Администратор " + author.tag, author.avatarURL())
+        .setTitle("📈 Изменение рейтинга")
+        .addFields(
+            { name: 'Никнейм:', value: "**{0}**".format(playerStats.userinstance.tag), inline: true },
+            { name: 'Рейтинг:', value: "**{0}** {1} ({2})\n".format(
+                playerStats.drating <= 0 ? playerStats.drating : "+"+playerStats.drating, 
+                playerStats.drating < 0 ? "📉" : "📈", 
+                playerStats.rating+playerStats.drating), inline: true },
+        );
+    return embedMsg;
+}
+
+function getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, gameType, multType, gameIndex, author){
+    let playersString = "", ratingString = "", bonusString = "";
+    let playersCount = playerStatsArray.length;
+    let concatPlayerStats = playerStatsArray.concat(subPlayerStatsArray);
+    let victoryTypesFFA = [gameType ? "GG" : "CC", "Научная", "Культурная", "Военная", "Религиозная", "Дипломатическая", "По очкам"];
+    let victoryThumbnailsURL = [
+        "https://static.wikia.nocookie.net/civilization/images/4/44/Science_Victory_%28Civ6%29.png",
+        "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/6/61/Icon_victory_culture.png",
+        "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/f/f7/Icon_victory_default.png",
+        "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/1/1c/Icon_victory_religious.png",
+        "https://static.wikia.nocookie.net/civilization/images/1/1e/Diplomatic_Victory_%28Civ6%29.png/revision/latest/scale-to-width-down/220?cb=20200430082219",
+        "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/2/27/Icon_victory_score.png"
+    ]
+    let placeStringArray = [];
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#00FFF0')
+        .setFooter("Администратор " + author.tag, author.avatarURL())
+        .setTitle("📈 Изменение рейтинга")
+        .addFields(
+        { name: 'Тип игры:', value: "{0}".format(gameType ? "Teamers" : "FFA"), inline: true },
+        { name: 'Тип победы:', value: "{0}".format(victoryTypesFFA[multType]), inline: true },
+        { name: 'ID игры:', value: "__**#{0}**__".format(gameIndex), inline: true},
+    );
+    if(multType != 0)
+        embedMsg.setThumbnail(victoryThumbnailsURL[multType-1]);
+    if(gameType == 0){                  // FFA
+        for(i in concatPlayerStats)
+            placeStringArray.push("");
+        for(let i = 0; i < playersCount; i++){
+            let tieLength = concatPlayerStats[i].tieIndex.length;
+            if(tieLength != 0){
+                for(let j = 0; j <= tieLength; j++)
+                    placeStringArray[i+j] = String(1+i) + "-" + String(1+i+tieLength) + ". ";
+                i += tieLength;
+            } else 
+                placeStringArray[i] = String(1+i) + ". ";
+        }
+        for(i in concatPlayerStats){
+            playersString += "**{0}{1}**".format(placeStringArray[i], concatPlayerStats[i].userinstance.tag);
+            if(concatPlayerStats[i].isLeave) 
+                playersString += " 💨";
+            if(concatPlayerStats[i].subID != -1)
+                playersString += " 🔄";
+            if(concatPlayerStats[i].tieIndex.length != 0){
+                playersString += " 🤝";
+            } else if(i != 0){
+                if(concatPlayerStats[i-1].tieIndex.length != 0)
+                    playersString += " 🤝";
+            }
+            playersString += "\n";
+            ratingString += "**{0} {1} ({2})**\n".format(
+                concatPlayerStats[i].dratingtyped < 0 ? concatPlayerStats[i].dratingtyped : "+"+concatPlayerStats[i].dratingtyped,
+                concatPlayerStats[i].dratingtyped < 0 ? "📉" : "📈", 
+                concatPlayerStats[i].ratingffa+concatPlayerStats[i].dratingtyped,
+            );
+            bonusString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(
+                concatPlayerStats[i].dmoney, 
+                concatPlayerStats[i].dkarma
+            );
+            if(i == playersCount-1){
+                playersString += "\n";
+                ratingString += "\n";
+                bonusString += "\n";
+            }
+        }
+    } else {
+        let teamLength = playersCount / gameType;
+        for(i in concatPlayerStats)
+            placeStringArray.push("");
+        for(let i = 0; i < gameType; i++){
+            let tieLength = concatPlayerStats[i*teamLength].tieIndex.length / teamLength;
+            if(tieLength != 0){
+                for(let j = 0; j < (tieLength+1)*teamLength; j++)
+                    placeStringArray[i*teamLength+j] = String(1+i) + "-" + String(1+i+tieLength) + ". ";
+                i += tieLength;
+            } else {
+                for(let j = 0; j < teamLength; j++)
+                    placeStringArray[i*teamLength+j] = String(1+i) + ". ";
+            }
+        }
+        for(i in concatPlayerStats){
+            playersString += "**{0}{1}**".format(placeStringArray[i], concatPlayerStats[i].userinstance.tag);
+            if(concatPlayerStats[i].isLeave) 
+                playersString += " 💨";
+            if(concatPlayerStats[i].subID != -1)
+                playersString += " 🔄";
+            if(concatPlayerStats[i].tieIndex.length != 0){
+                playersString += " 🤝";
+            } else if(i-teamLength >= 0){
+                if(concatPlayerStats[i-teamLength].tieIndex.length != 0)
+                    playersString += " 🤝";
+            }
+            playersString += "\n";
+            ratingString += "**{0} {1} ({2})**\n".format(
+                concatPlayerStats[i].dratingtyped < 0 ? concatPlayerStats[i].dratingtyped : "+"+concatPlayerStats[i].dratingtyped,
+                concatPlayerStats[i].dratingtyped < 0 ? "📉" : "📈", 
+                concatPlayerStats[i].ratingteam+concatPlayerStats[i].dratingtyped,
+            );
+            bonusString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(
+                concatPlayerStats[i].dmoney, 
+                concatPlayerStats[i].dkarma
+            );
+            if((i < playersCount)&&((Number(i)+1)%teamLength == 0)){
+                playersString += "\n";
+                ratingString += "\n";
+                bonusString += "\n";
+            }
+        }
+    }
+    embedMsg.addFields(
+        { name: 'Никнейм:', value: playersString, inline: true },
+        { name: 'Рейтинг:', value: ratingString, inline: true },
+        { name: 'Бонус:', value: bonusString, inline: true },
+    );
+    return embedMsg;
+}
+
+function getEmbed_RatingChangeCancel(playerStatsArray, gameType, gameIndex, author){
+    let playersString = "", ratingString = "", bonusString = "";
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#00FFF0')
+        .setFooter("Администратор " + author.tag, author.avatarURL())
+        .setTitle("📉 Отмена рейтинга")
+        .addFields(
+        { name: 'Тип игры:', value: "{0}".format(gameType ? "Teamers" : "FFA"), inline: true },
+        { name: 'ID игры:', value: "__**#{0}**__".format(gameIndex), inline: true},
+        { name: 'Весь рейтинг будет возвращён.', value: "**Все полученные бонусы аннулируются.**", inline: true},
+    );
+    for(i in playerStatsArray){
+        playersString += "**{0}**\n".format(playerStatsArray[i].userinstance.tag);
+        ratingString += "**{0} {1} ({2})**\n".format(
+            -playerStatsArray[i].dratingtyped < 0 ? -playerStatsArray[i].dratingtyped : "+"+(-playerStatsArray[i].dratingtyped),
+            -playerStatsArray[i].dratingtyped < 0 ? "📉" : "📈", 
+            gameType ? playerStatsArray[i].ratingteam-playerStatsArray[i].dratingtyped : playerStatsArray[i].ratingffa-playerStatsArray[i].dratingtyped,
+        );
+        bonusString += "**{0}** 🪙 |  **{1}** 💧\n".format(
+            -playerStatsArray[i].dmoney, 
+            -playerStatsArray[i].dkarma
+        );
+    }
+    embedMsg.addFields(
+        { name: 'Никнейм:', value: playersString, inline: true },
+        { name: 'Рейтинг:', value: ratingString, inline: true },
+        { name: 'Возврат:', value: bonusString, inline: true },
+    );
+    return embedMsg;
+}
+
+function getEmbed_OldRatingSingleChange(user, ratingBefore, ratingAfter, author, moneyAdd, karmaAdd, teamFlag, multType, gameID, isCancel){
     userString = ""; ratingString = ""; additionalString = "";
     const embedMsg = new Discord.MessageEmbed()
     if(isCancel){
@@ -486,9 +649,7 @@ function getEmbed_Irrel(){
     const embedMsg = new Discord.MessageEmbed()
         .setColor('#FF3D3D')
         .setTitle('📌 Краткое описание правил: иррелевантность')
-        .setDescription(`Голосование за иррелевантность может проводится **не чаще, чем раз в 5 ходов** в отношении одного игрока. Голосование может быть инициировано самим игроком в любой момент игры или хостом, если игрок трижды вылетает из игры по техническим причинам.
-        
-        В случае, если инициатором голосования является хост, то цель голосования не учитывается при подсчете голосов.
+        .setDescription(`Иррелеватность - признание игрока неспособным влиять на игровой процесс с последующей возможностью покинуть игру без штрафов. Иррелеватный игрок считается погибшим при подсчёте рейтинга. Голосование за иррелевантность может проводится **не чаще, чем раз в 5 ходов** в отношении одного игрока. Голосование может быть инициировано только целью голосования, но в любой момент игры.
 
         **На это голосование нельзя наложить вето.**
 
@@ -498,7 +659,7 @@ function getEmbed_Irrel(){
         • 60+ ход – 2/3 игроков.
         • Если игрок имеет право вето: любой ход – единогласно.
 
-        Игроку позволяется вылететь **до 2 раз за игру**. После **3 вылета** хост партии имеет право не впускать игрока в игру. В таком случае игрок вынужден найти замену, иначе он считается иррелевантным и получает место в соответствии с правилом иррелевантности.
+        Игроку позволяется вылететь **до 2 раз за игру**. После **3 вылета** хост партии имеет право не впускать игрока в игру. В таком случае игрок вынужден найти замену, иначе он считается иррелевантным.
         `);
     return embedMsg;
 }
@@ -512,7 +673,7 @@ function getEmbed_Remap(){
         В случае, если предлагается провести ремап повторно, то после каждого ремапа требуется согласие на 1 игрока больше, чем требовалось в предыдущий раз.
         
         Голосование за ремап *в Teamers* проводится **до 8 хода включительно**.
-        Для успешного ремапа необходимо согласие хотя бы 50% команд.
+        Для успешного ремапа необходимо согласие **хотя бы** 50% команд.
         Команды могут выразить свое согласие на ремап лишь 1 раз за игру.
         
         Авторемап может произойти *в FFA* **до 15 хода включительно** и гарантирован в случаях, описанных ниже.
@@ -1098,6 +1259,8 @@ module.exports = {
     getEmbed_Unchat,
     getEmbed_Pardon,
     getEmbed_RatingSingleChange,
+    getEmbed_RatingChange,
+    getEmbed_RatingChangeCancel,
     getEmbed_LikeOrDislike,
     getEmbed_Welcome1,
     getEmbed_Welcome2,
