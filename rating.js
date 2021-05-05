@@ -141,10 +141,8 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
                     for(let i = 0; i < playersCount; i++)
                         playerStatsArray.push(await getPlayerStatsObjectFromData(await getUserdata(playersID[i])));
                     let iterIndex = 0;
-                    console.log(args)
                     while(iterIndex != playersCount){
                         let currentArg = args.shift();
-                        console.log(currentArg);
                         switch(currentArg){
                             case undefined:
                                 return await message.channel.send(getEmbed_Error("Некорректные данные (см. <#807958245541019680>)!"));
