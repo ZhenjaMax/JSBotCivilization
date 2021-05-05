@@ -11,7 +11,9 @@ const { getUserdata,
         databaseRatingUnregister } = require('./database.js');
 const { getEmbed_Error,
         getEmbed_RatingSingleChange,
-        getEmbed_UnknownError } = require('./embedMessages.js');
+        getEmbed_UnknownError,
+        getEmbed_RatingChange,
+        getEmbed_RatingChangeCancel } = require('./embedMessages.js');
 const { roleRanksID,
         roleRanksValue,
         bot,
@@ -21,186 +23,308 @@ const { roleRanksID,
 const { ratingReportsChannelID } = require('./config.js');
 
 const multTypeList = ["science", "culture", "domination", "religious", "diplomatic", "score"];
-const specialWordList = ["tie", "sub", "leave"];
+const multMultiplier = 1.5;
+const multMultiplierWin = 1.25;
+const multMultiplierDefeat = 0.75;
+const subMultiplier = 1.5;
 
-async function ratingHandler(robot, message, args){
-    //try{
-        let users = [], playersID = parsePlayers(message.content),
-        ratingTypedBefore = [], ratingBefore = [],  
-        ratingTypedAfter = [], ratingAfter = [],   
-        ratingTypedAdd = [], ratingAdd = [], 
-        karmaBefore = [], karmaAdd = [],
-        moneyBefore = [], moneyAdd = [];
-        let playersCount = playersID.length, 
-        multType = 0;
+async function getPlayerStatsObjectFromData(userdata){
+    let userInstance = await bot.users.fetch(userdata.userid);
+    return {
+        id: userdata.userid,
+        userinstance: userInstance,
+        multiplier: 1,
 
-		/*
-        let playerIndexArray = [];              // индексы всех ID игроков
-        let specialIndex = [[], [], []];        // 0 = tie, 1 = sub, 2 = leave;
-        let messageContentTemp = message.content.toLowerCase();
-        for(i in playersID){
-            let tempIndex = messageContentTemp.indexOf(String(playersID[i]));
-            playerIndexArray.push(tempIndex);
-        }
-        for(i in specialWordList){
-            let iterTemp = 0;
-            do{
-                iterTemp = messageContentTemp.indexOf(specialWordList[i], iterTemp);
-                specialIndex[i].push(iterTemp);
-                iterTemp++;
-            } while(iterTemp != 0);
-            specialIndex[i].pop();
-        }
-        playerIndexArray.push(message.content.length);
-        for(i in specialIndex)
-            for(j in specialIndex[i])
-                for(let k = 0; k < playersCount; k++)
-                    if((playerIndexArray[k] < specialIndex[i][j])&&(playerIndexArray[k+1] > specialIndex[i][j]))
-                        specialIndex[i][j] = k;
-        playerIndexArray.pop();
-        for(i in playerIndexArray)
-            playerIndexArray[i] = Number(i);
+        rating: userdata.rating,
+        ratingffa: userdata.ratingffa,
+        ratingteam: userdata.ratingteam,
+        money: userdata.money,
+        karma: userdata.karma,
+        
+        tieIndex: [],
+        subID: -1, 
+        isLeave: false,
 
-        //console.log(playersID);
-        //console.log(playerIndexArray);
-        //console.log(specialIndex);
+        drating: 0,
+        dratingtyped: 0,
+        dmoney: 0,
+        dkarma: 0,  
+    };
+}
 
-        let leaveID = [], subID = [], tieID = [];
+async function getPlayerStatsObjectFromRegistered(ratingObject){
+    let userInstance = await bot.users.fetch(ratingObject.userid);
+    let userdata = await getUserdata(ratingObject.userid);
+    return {
+        id: userdata.userid,
+        userinstance: userInstance,
+        multiplier: 1,
 
-        for(i in specialIndex[2])       // leave
-            leaveID.push(playersID[specialIndex[2][i]]);
+        rating: userdata.rating,
+        ratingffa: userdata.ratingffa,
+        ratingteam: userdata.ratingteam,
+        money: userdata.money,
+        karma: userdata.karma,
+        
+        tieIndex: [],
+        subID: -1, 
+        isLeave: false,
 
-        for(i in specialIndex[1]){       // sub
-            subID.push(playersID[[specialIndex[1][i]], playersID[specialIndex[1][i+1]]]);
-        }
+        drating: ratingObject.ratingAdd,
+        dratingtyped: ratingObject.ratingTypedAdd,
+        dmoney: ratingObject.moneyAdd,
+        dkarma: ratingObject.karmaAdd,  
+    };
+}
 
-        for(i in specialIndex[0]){       // tie
+function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
+    let d = 400, K = 30, S = isTie ? 0.5 : 1;
+    E = 1/(1 + Math.pow(10, (ratingB - ratingA)/d));
+    return Math.round(K*(S-E));
+}
 
-        }
-		*/
-		
-        handler = args.shift();
-        switch(handler){
-            case 'add':
-            case 'change':
-            case 'set':
-                if(playersCount != 1)
-                    return message.channel.send(getEmbed_Error("Для данной команды необходимо ввести одного игрока."));
-                playerID = playersID[0];
-                ratingValue = parseInteger(args[1]);
-                if(isNaN(ratingValue) || (ratingValue == undefined))
-                    return message.channel.send(getEmbed_Error("Введите значение рейтинга."));
-                userdata = await getUserdata(playerID);
-                ratingBefore = userdata.rating;
-                user = message.guild.members.cache.get(playerID).user;
-                ratingAfter = (handler == 'set') ? ratingValue : ratingBefore + ratingValue;
-                await updateUserdataRating(playerID, ratingAfter);
-                await message.channel.send(getEmbed_RatingSingleChange([user], [ratingBefore], [ratingAfter], message.author));
-                await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange([user], [ratingBefore], [ratingAfter], message.author));
-                break;
+    function ratingElo(playerStatsArray, teamLength = 1){
+    let teamCount = playerStatsArray.length / teamLength, drating, dratingtyped;
+    for(let i = 0; i < teamCount-1; i++)
+        for(let j = 0; j < teamLength; j++)
+            for(let k = (i+1)*teamLength; k < playerStatsArray.length; k++){
+                drating = ratingEloPair(playerStatsArray[i*teamLength+j].rating, playerStatsArray[k].rating, playerStatsArray[i*teamLength+j].tieIndex.indexOf(k) != -1);
+                dratingtyped = (teamLength > 1) ? ratingEloPair(playerStatsArray[i*teamLength+j].ratingteam, playerStatsArray[k].ratingteam, playerStatsArray[i*teamLength+j].tieIndex.indexOf(k) != -1) :
+                                                ratingEloPair(playerStatsArray[i*teamLength+j].ratingffa, playerStatsArray[k].ratingffa, playerStatsArray[i*teamLength+j].tieIndex.indexOf(k) != -1);
+                playerStatsArray[i*teamLength+j].drating += drating;
+                playerStatsArray[i*teamLength+j].dratingtyped += dratingtyped;
+                playerStatsArray[k].drating -= drating;
+                playerStatsArray[k].dratingtyped -= dratingtyped;
+            }
+    return playerStatsArray;
+}
 
-            case 'cc':
-            case 'mult':
-            case 'team':
-                if(playersCount < 2 || playersCount > 16) return await message.channel.send(getEmbed_Error("Для данной команды необходимо ввести от 2 до 16 игроков."));
-                if((handler == 'team') && (playersCount % 2)) return await message.channel.send(getEmbed_Error("Для данной команды необходимо чётное число игроков."));
-                if(handler == "mult"){
-                    multType = multTypeList.indexOf(args.shift().toLowerCase()) + 1;
-                    if(multType == 0) return await message.channel.send(getEmbed_Error("Введите один из следующих типов победы:\nscience, culture, domination, religious, diplomatic, score."));
-                }
-                for(let i in playersID){
-                    userdata = await getUserdata(playersID[i]);
-                    ratingBefore[i] = userdata.rating;
-                    ratingTypedBefore[i] = (handler == 'team') ? userdata.ratingteam : userdata.ratingffa;
-                    moneyBefore[i] = userdata.money;
-                    karmaBefore[i] = userdata.karma;
-                    users[i] = await message.guild.members.cache.get(playersID[i]).user;
-                }
-                ratingAfter = countRatingEloGeneral(ratingBefore, handler == 'mult', handler == 'team');
-                ratingTypedAfter = countRatingEloGeneral(ratingTypedBefore, handler == 'mult', handler == 'team');
-                for(let i in playersID){
-                    moneyAdd[i] = Math.max(Math.round(2*Math.pow(playersCount, 2) - 3*(ratingAfter[i]-ratingBefore[i])/playersCount + 10*(playersCount-1)*(Number(handler == 'mult'))), 0);  // MONEY = 2n^2 - 3d/n + 10n*if(mult)
-                    karmaAdd[i] = Math.floor((playersCount - 1)/2*(1 + (handler == 'mult')));
-                    await updateUserdataRating(playersID[i], ratingAfter[i]);
-                    await updateUserdataRatingTyped(playersID[i], ratingTypedAfter[i], handler == 'team');
-                    await setUserdataMoney(playersID[i], Math.max(moneyBefore[i] + moneyAdd[i], 0));
-                    await updateUserdataKarma(playersID[i], Math.min(karmaBefore[i] + karmaAdd[i], 100));
-                    await updateUserdataGameStats(playersID[i], (handler == "team"), (i==0 ? 2 : (ratingTypedAfter[i]-ratingTypedBefore[i]>=0 ? 1 : -1)));
-                }
-                if(multType != 0)
-                    await updateUserdataMultStats(playersID[0], multType, playersID.length-1);
-                for(i in playersID){
-                    ratingAdd[i] = ratingAfter[i]-ratingBefore[i];
-                    ratingTypedAdd[i] = ratingTypedAfter[i]-ratingTypedBefore[i];
-                }
-                gameID = await databaseRatingRegister(Number(handler == 'team'), playersID, ratingAdd, ratingTypedAdd, moneyAdd, karmaAdd, multType);
-                await message.channel.send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', multType, gameID, handler == 'cancel'));
-                await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', multType, gameID, handler == 'cancel'));
-
-                FFARole = await message.guild.roles.cache.get(FFARoleID);
-                teamersRole = await message.guild.roles.cache.get(teamersRoleID);
-                for(let i in playersID){
-                    memberRated = await message.guild.members.cache.get(playersID[i]);
-                    if((handler == "team")&&(!memberRated.roles.cache.has(teamersRoleID)))
-                        await memberRated.roles.add(teamersRole);
-                    else if(!memberRated.roles.cache.has(FFARoleID))
-                        await memberRated.roles.add(FFARole);
-                }
-                break;
-            
-            case 'cancel':
-                gameID = parseInteger(args.shift());
-                if(isNaN(gameID) || (gameID == undefined))
-                    return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
-                if(gameID <= 0)
-                    return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
-                gameResults = await databaseRatingUnregister(gameID);
-                if(gameResults.length == 0)
-                    return await message.channel.send(getEmbed_Error("Игры с таким ID не существует!"));
-                if(gameResults[0].isActive == 0)
-                    return await message.channel.send(getEmbed_Error("Игра с таким ID уже была отменена!"));
-                for(i in gameResults){
-                    gameResults[i] = gameResults[i].dataValues;
-                    playersID[i] = gameResults[i].userid;
-                    ratingAdd[i] = gameResults[i].ratingAdd;
-                    ratingTypedAdd[i] = gameResults[i].ratingTypedAdd;
-                    moneyAdd[i] = gameResults[i].moneyAdd;
-                    karmaAdd[i] = gameResults[i].karmaAdd;
-                }
-                gameType = gameResults[0].gameType;     // 0 = FFA, 1 = Team
-                multType = gameResults[0].multType;
-                for(let i in playersID){
-                    userdata = await getUserdata(playersID[i]);
-                    users[i] = await message.guild.members.cache.get(playersID[i]).user;
-
-                    ratingBefore[i] = userdata.rating;
-                    ratingTypedBefore[i] = (gameType) ? userdata.ratingteam : userdata.ratingffa;
-                    ratingAfter[i] = ratingBefore[i] - ratingAdd[i];
-                    ratingTypedAfter[i] = ratingTypedBefore[i] - ratingTypedAdd[i];
-
-                    moneyBefore[i] = userdata.money;
-                    karmaBefore[i] = userdata.karma;
-                }
-                for(let i in playersID){
-                    await updateUserdataRating(playersID[i], ratingAfter[i]);
-                    await updateUserdataRatingTyped(playersID[i], ratingTypedAfter[i], gameType);
-                    await setUserdataMoney(playersID[i], Math.max(moneyBefore[i] - moneyAdd[i], 0));
-                    await updateUserdataKarma(playersID[i], Math.max(karmaBefore[i] - karmaAdd[i], 0));
-                    await updateUserdataGameStats(playersID[i], gameType==1, (i==0 ? 2 : (ratingTypedAdd[i]>=0 ? 1 : -1)), true);
-                }
-                if(multType != 0)
-                    await updateUserdataMultStats(playersID[0], multType, playersID.length-1, true);
-                await message.channel.send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', 0, gameID, handler == 'cancel'));
-                await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(users, ratingTypedBefore, ratingTypedAfter, message.author, moneyAdd, karmaAdd, handler == 'team', 0, gameID, handler == 'cancel'));
-                break;
-            default:
-                return await message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\ncc, mult, team, set, add/change, cancel."));
-        }
-        if(playersID.length > 0)
-            await updateUsersRatingRole(playersID);
-    //} catch (errorRatingHandler){
-    //    await message.channel.send(getEmbed_UnknownError("errorRatingHandler"));
-    //}
+    async function ratingHandler(robot, message, args){
+    let playersID = parsePlayers(message.content);
+    let playersCount = playersID.length;
+    let handler = args.shift(), multString = "";
+    let gameTypeIndex = 0;
+    let multIndex = 0;
+    let teamCountInput = 1;
+    let playerStatsArray = [], subPlayerStatsArray = [];
+    switch(handler){
+        case 'add':
+        case 'change':
+        case 'set':
+            if(playersCount != 1) return await message.channel.send(getEmbed_Error("Для данной команды необходимо ввести одного игрока."));
+            let ratingValue = parseInteger(args[1]);
+            if(isNaN(ratingValue) || (ratingValue == undefined)) return await message.channel.send(getEmbed_Error("Введите значение рейтинга."));
+            let playerStats = await getPlayerStatsObjectFromData(await getUserdata(playersID[0]));
+            playerStats.drating = (handler == 'set') ? ratingValue-playerStats.rating : ratingValue;
+            await updateUserdataRating(playerStats.id, playerStats.rating+playerStats.drating);
+            await message.channel.send(getEmbed_RatingSingleChange(playerStats, message.author));
+            await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(playerStats, message.author));
+            await updateUsersRatingRole([playerStats.id]);
+            break;
+        case 'team':
+            gameTypeIndex = 1;
+            handler = args.shift();
+            teamCountInput = parseInteger(handler);
+            if(isNaN(teamCountInput)||(teamCountInput == undefined)){
+                args.unshift(handler);
+                teamCountInput = 2;
+            }
+        case 'ffa':
+            handler = args.shift();
+            switch(handler){
+                case 'mult':
+                    multString = args.shift();
+                    multIndex = multTypeList.indexOf(multString)+1;
+                    if(multIndex == 0) return await message.channel.send(getEmbed_Error("Введите один из следующих типов победы:\nscience, culture, domination, religious, diplomatic, score."));
+                case 'cc':
+                case 'gg':
+                    for(let i = 0; i < playersCount; i++)
+                        playerStatsArray.push(await getPlayerStatsObjectFromData(await getUserdata(playersID[i])));
+                    let iterIndex = 0;
+                    console.log(args)
+                    while(iterIndex != playersCount){
+                        let currentArg = args.shift();
+                        console.log(currentArg);
+                        switch(currentArg){
+                            case undefined:
+                                return await message.channel.send(getEmbed_Error("Некорректные данные (см. <#807958245541019680>)!"));
+                            case "leave":
+                                playerStatsArray[iterIndex-1].isLeave = true;
+                                break;
+                            case "tie":
+                                playerStatsArray[iterIndex-1].tieIndex.push(iterIndex);
+                                break;
+                            case "sub":
+                                playersCount--;
+                                playerStatsArray[iterIndex].subID = iterIndex-1;
+                                playerStatsArray[iterIndex-1].subID = iterIndex;
+                                subPlayerStatsArray.push(playerStatsArray.splice(iterIndex, 1)[0]);
+                                currentArg = args.shift();
+                                if(parsePlayers(currentArg)[0] == subPlayerStatsArray[subPlayerStatsArray.length-1].id)
+                                    playersID.splice(iterIndex, 1);
+                                currentArg = args.shift();
+                                if(currentArg == 'leave')
+                                    subPlayerStatsArray[subPlayerStatsArray.length-1].isLeave = true;
+                                else if(currentArg != undefined)
+                                    args.unshift(currentArg);
+                                break;
+                            default:
+                                if(parsePlayers(currentArg)[0] == playerStatsArray[iterIndex].id)
+                                    iterIndex++;
+                                else return await message.channel.send(getEmbed_Error("Некорректные данные (см. <#807958245541019680>)!"));
+                                break;
+                        }
+                    }
+                    if(args.shift() == "leave") 
+                        playerStatsArray[playerStatsArray.length-1].isLeave = true;
+                    if(gameTypeIndex == 0){                             // Индексы для ничьи
+                        for(let i = 0; i < playerStatsArray-1; i++){
+                            if(playerStatsArray[i].tieIndex.length != 0){
+                                for(let j = i+1; j < playersCount; j++)
+                                    if(playerStatsArray[j].tieIndex.length == 0)
+                                        break;
+                                    else
+                                        playerStatsArray[i].tieIndex.push(playerStatsArray[j].tieIndex[0]);
+                            }
+                        }
+                    } else {
+                        if(gameTypeIndex && (playersCount % teamCountInput) != 0) return await message.channel.send(getEmbed_Error("Количество игроков должно быть кратно количеству команд."));
+                        let teamLength = playersCount / teamCountInput;
+                        for(let i = 0; i < teamCountInput-1; i++){
+                            if(playerStatsArray[(i+1)*teamLength-1].tieIndex.length != 0){
+                                for(let j = i+1; j < teamCountInput; j++)
+                                    if(playerStatsArray[(j+1)*teamLength-1].tieIndex.length == 0)
+                                        break;
+                                    else 
+                                        playerStatsArray[(i+1)*teamLength-1].tieIndex.push(playerStatsArray[(j+1)*teamLength-1].tieIndex[0]);
+                            }
+                        }
+                        for(let i = 0; i < teamCountInput; i++){
+                            let tieLength = playerStatsArray[(i+1)*teamLength-1].tieIndex.length;
+                            for(let j = 0; j < tieLength; j++){
+                                for(let k = 0; k < teamLength-1; k++)
+                                    playerStatsArray[(i+1)*teamLength-1].tieIndex.push(playerStatsArray[(i+1)*teamLength-1].tieIndex[j]+k+1);
+                            }
+                        }
+                        for(let i = 0; i < teamCountInput; i++)
+                            for(let j = 0; j < teamLength-1; j++)
+                                playerStatsArray[(i+1)*teamLength-2-j].tieIndex = playerStatsArray[(i+1)*teamLength-1].tieIndex;   
+                    }
+                    if(playersCount < 2 || playersCount > 16) return await message.channel.send(getEmbed_Error("Для данной команды необходимо ввести от 2 до 16 игроков."));
+                    playerStatsArray = ratingElo(playerStatsArray, gameTypeIndex ? playersCount/teamCountInput : 1);      // Подсчёт
+                    for(i in playerStatsArray)
+                        if(multIndex != 0){                                     // Выдача денег и кармы
+                            playerStatsArray[i].dkarma = playersCount;
+                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount);
+                        } else {
+                            playerStatsArray[i].dkarma = Math.floor(playersCount/2);
+                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount + 10*playersCount);
+                        }
+                    for(i in subPlayerStatsArray){                       // Замены (учёт бонусов)
+                        let subIndex = subPlayerStatsArray[i].subID;
+                        let subRating = ratingEloPair(playerStatsArray[subIndex].rating, subPlayerStatsArray[i].rating);
+                        let subRatingTyped = gameTypeIndex ? ratingEloPair(playerStatsArray[subIndex].ratingteam, subPlayerStatsArray[i].ratingteam) : ratingEloPair(playerStatsArray[subIndex].ratingffa, subPlayerStatsArray[i].ratingffa);
+                        playerStatsArray[subIndex].drating += subRating;
+                        playerStatsArray[subIndex].dratingtyped += subRatingTyped;
+                        playerStatsArray[subIndex].dmoney = Math.floor(playerStatsArray[subIndex].dmoney*subMultiplier);
+                        playerStatsArray[subIndex].dkarma = Math.floor(playerStatsArray[subIndex].dkarma*subMultiplier);
+                        subPlayerStatsArray[i].drating -= subRating;
+                        subPlayerStatsArray[i].dratingtyped -= subRatingTyped;
+                        subPlayerStatsArray[i].dmoney = subRating;
+                        subPlayerStatsArray[i].dkarma = 1;
+                        if(playerStatsArray[subIndex].drating < 0){
+                            subPlayerStatsArray[i].drating += playerStatsArray[subIndex].drating
+                            playerStatsArray[subIndex].drating = 0;
+                        }
+                        if(playerStatsArray[subIndex].dratingtyped < 0){
+                            subPlayerStatsArray[i].dratingtyped += playerStatsArray[subIndex].dratingtyped
+                            playerStatsArray[subIndex].dratingtyped = 0;
+                        }
+                    }
+                    for(i in playerStatsArray){                         // Учёт ливнувших игроков
+                        if(playerStatsArray[i].isLeave){                // И всех бонусов за мульт
+                            playerStatsArray[i].dkarma = 0;
+                            playerStatsArray[i].dmoney = 0;
+                        }
+                        if(multIndex != 0){
+                            if(gameTypeIndex == 0){
+                                playerStatsArray[i].drating = Math.floor(multMultiplier*playerStatsArray[i].drating);
+                                playerStatsArray[i].dratingtyped = Math.floor(multMultiplier*playerStatsArray[i].dratingtyped);
+                            } else {
+                                playerStatsArray[i].drating = Math.floor(playerStatsArray[i].drating > 0 ? multMultiplierWin*playerStatsArray[i].drating : multMultiplierDefeat*playerStatsArray[i].drating);
+                                playerStatsArray[i].drating = Math.floor(playerStatsArray[i].dratingtyped > 0 ? multMultiplierWin*playerStatsArray[i].dratingtyped : multMultiplierDefeat*playerStatsArray[i].dratingtyped);
+                            }
+                        }
+                    }
+                    for(i in subPlayerStatsArray){
+                        if(subPlayerStatsArray[i].isLeave){
+                            subPlayerStatsArray[i].dkarma = 0;
+                            subPlayerStatsArray[i].dmoney = 0;
+                        }
+                        if(multIndex != 0){
+                            if(gameTypeIndex == 0){
+                                subPlayerStatsArray[i].drating = Math.floor(multMultiplier*subPlayerStatsArray[i].drating);
+                                subPlayerStatsArray[i].dratingtyped = Math.floor(multMultiplier*subPlayerStatsArray[i].dratingtyped);
+                            } else {
+                                subPlayerStatsArray[i].drating = Math.floor(subPlayerStatsArray[i].drating > 0 ? multMultiplierWin*subPlayerStatsArray[i].drating : multMultiplierDefeat*subPlayerStatsArray[i].drating);
+                                subPlayerStatsArray[i].drating = Math.floor(subPlayerStatsArray[i].dratingtyped > 0 ? multMultiplierWin*subPlayerStatsArray[i].dratingtyped : multMultiplierDefeat*subPlayerStatsArray[i].dratingtyped);
+                            }
+                        }
+                    }
+                    let concatPlayerStats = playerStatsArray.concat(subPlayerStatsArray);
+                    for(i in concatPlayerStats){                         // Изменение в базе данных и последующая регистрация
+                        await updateUserdataRating(concatPlayerStats[i].id, concatPlayerStats[i].rating+concatPlayerStats[i].drating);
+                        await updateUserdataRatingTyped(concatPlayerStats[i].id, gameTypeIndex ? concatPlayerStats[i].ratingteam+concatPlayerStats[i].dratingtyped : concatPlayerStats[i].ratingffa+concatPlayerStats[i].dratingtyped, gameTypeIndex);
+                        await setUserdataMoney(concatPlayerStats[i].id, concatPlayerStats[i].money+concatPlayerStats[i].dmoney);
+                        await updateUserdataKarma(concatPlayerStats[i].id, Math.min(concatPlayerStats[i].karma+concatPlayerStats[i].dkarma, 100));
+                        let gameValue = (i==0) ? 2 : ((concatPlayerStats[i].dratingtyped >= 0) ? 1 : -1);
+                        await updateUserdataGameStats(concatPlayerStats[i].id, gameTypeIndex, gameValue);
+                    }
+                    if(multIndex != 0)                                  // Мультик первому игроку
+                        await updateUserdataMultStats(playerStatsArray[0].id, multIndex, playerStatsArray.length-1)                 // игравшие, заменённые, тип игры, индекс мульта,
+                    let embedMsgInstance = getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, gameTypeIndex ? teamCountInput : 0, multIndex, await databaseRatingRegister(concatPlayerStats, gameTypeIndex, multIndex), message.author);
+                    await message.channel.send(embedMsgInstance)   // +индекс игры, +автор
+                    await bot.channels.cache.get(ratingReportsChannelID).send(embedMsgInstance);
+                    await updateUsersRatingRole(concatPlayerStats.map(x => x.id));
+                    break;
+                default:
+                    return await message.channel.send(getEmbed_Error("Введите корректную подкоманду (см. <#807958245541019680>)."));
+            }
+            break;
+        case 'cancel':
+            let gameID = parseInteger(args.shift());
+            if(isNaN(gameID) || (gameID == undefined))
+                return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
+            if(gameID <= 0)
+                return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
+            gameResults = await databaseRatingUnregister(gameID);
+            if(gameResults.length == 0)
+                return await message.channel.send(getEmbed_Error("Игры с таким ID не существует!"));
+            if(gameResults[0].isActive == 0)
+                return await message.channel.send(getEmbed_Error("Игра с таким ID уже была отменена!"));
+            let concatPlayerStats = [];
+            for(i in gameResults)
+                concatPlayerStats.push(await getPlayerStatsObjectFromRegistered(gameResults[i]));
+            gameTypeIndex = gameResults[i].gameType;
+            multIndex = gameResults[i].multType;
+            for(i in concatPlayerStats){
+                await updateUserdataRating(concatPlayerStats[i].id, concatPlayerStats[i].rating-concatPlayerStats[i].drating);
+                await updateUserdataRatingTyped(concatPlayerStats[i].id, gameTypeIndex ? concatPlayerStats[i].ratingteam-concatPlayerStats[i].dratingtyped : concatPlayerStats[i].ratingffa-concatPlayerStats[i].dratingtyped, gameTypeIndex);
+                await setUserdataMoney(concatPlayerStats[i].id, concatPlayerStats[i].money-concatPlayerStats[i].dmoney);
+                await updateUserdataKarma(concatPlayerStats[i].id, Math.max(concatPlayerStats[i].karma-concatPlayerStats[i].dkarma, 0));
+                let gameValue = (i==0) ? 2 : ((concatPlayerStats[i].dratingtyped >= 0) ? 1 : -1);
+                await updateUserdataGameStats(concatPlayerStats[i].id, gameTypeIndex, gameValue, true);
+            }
+            if(multIndex != 0)
+                await updateUserdataMultStats(concatPlayerStats[0].id, multIndex, playerStatsArray.length-1, true);
+            let embedMsgInstance = getEmbed_RatingChangeCancel(concatPlayerStats, gameTypeIndex, gameID, message.author);
+            await message.channel.send(embedMsgInstance);
+            await bot.channels.cache.get(ratingReportsChannelID).send(embedMsgInstance);
+            await updateUsersRatingRole(concatPlayerStats.map(x => x.id));
+            break;
+        default:
+            return await message.channel.send(getEmbed_Error("Введите одну из следующих подкоманд:\nffa, team, set, add/change, cancel."));
+    }
 }
 
 async function updateUsersRatingRole(playersID){
@@ -209,8 +333,8 @@ async function updateUsersRatingRole(playersID){
         let ratingList = [userdata.rating];
         if(userdata.winsFFA + userdata.defeatsFFA > 0) 
             ratingList.push(userdata.ratingffa);
-        if(userdata.winsTeamers + defeatsTeamers > 0)
-            ratingList.push(ratingteam);
+        if(userdata.winsTeamers + userdata.defeatsTeamers > 0)
+            ratingList.push(userdata.ratingteam);
         playerIterRating = Math.max(...ratingList);
         let index = 0;
         for(index; index < roleRanksValue.length; index++)
@@ -220,7 +344,6 @@ async function updateUsersRatingRole(playersID){
         playerIterMember = await bot.guilds.cache.get(guildID).members.cache.get(playerIterID);   // нашли memberIter
         if(playerIterMember.roles.cache.has(rightRoleID))    // если уже есть
             continue;                           // next iterID для memberIter
-        
         for(roleRankIterID of roleRanksID){     // убрать все неправильные роли
             if(playerIterMember.roles.cache.has(roleRankIterID)){
                 wrongRole = await bot.guilds.cache.get(guildID).roles.cache.get(roleRankIterID);
@@ -230,41 +353,6 @@ async function updateUsersRatingRole(playersID){
         rightRole = await bot.guilds.cache.get(guildID).roles.cache.get(rightRoleID);
         await playerIterMember.roles.add(rightRole);
     }
-}
-
-function countRatingEloPair(ratingA, ratingB, M, isTie = false){      // A побеждает B всегда (так задаётся функция ниже)
-    d = 400;
-    K = 30;
-    S = isTie ? 0.5 : 1;  // Победа (ничьи пока что нет)
-    E = 1/(1 + Math.pow(10, (ratingB - ratingA)/400));
-    RA = Math.round(M*K*(S-E));
-    return [RA, -RA];
-}
-
-function countRatingEloGeneral(ratingBefore, isMultiplied, isTeamGame){
-    playersCount = ratingBefore.length;
-    delta = new Array(playersCount).fill(0);
-    let multiplier = isMultiplied ? 1.5 : 1;
-    if(isTeamGame)
-        for(let i = 0; i < playersCount/2; i++)
-            for(let j = playersCount/2; j < playersCount; j++){
-                let deltaPair = countRatingEloPair(ratingBefore[i], ratingBefore[j], multiplier);
-                delta[i] += deltaPair[0];
-                delta[j] += deltaPair[1];
-            }
-    else
-        for(let i = 0; i < playersCount-1; i++)
-            for(let j = i+1; j < playersCount; j++){
-                let deltaPair = countRatingEloPair(ratingBefore[i], ratingBefore[j], multiplier);
-                delta[i] += deltaPair[0];
-                delta[j] += deltaPair[1];
-            }
-    correctBonus = Math.min(Math.max(0, Math.floor((playersCount-4)/2)), 3);
-    delta.map(iter => iter+correctBonus);
-    let ratingAfter = [];
-    for(let i = 0; i < playersCount; i++)
-        ratingAfter[i] = ratingBefore[i] + delta[i];
-    return ratingAfter;
 }
 
 module.exports = { ratingHandler, updateUsersRatingRole }

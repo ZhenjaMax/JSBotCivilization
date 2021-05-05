@@ -132,7 +132,7 @@ bot.on('message', async (message) => {
                 return;
     }
 
-    args = message.content.trim().toLowerCase().split(" ");
+    args = message.content.replace(/\n/g, " ").trim().toLowerCase().split(" ").filter(x => x);
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))

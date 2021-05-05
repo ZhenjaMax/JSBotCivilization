@@ -330,8 +330,7 @@ async function setUserdataBonusStreak(userID, daysValue){
 
 async function updateUserdataMultStats(userID, multType, multValue, reverted = false){
 	let userdata = await getUserdata(userID);
-	if(reverted)
-		multValue *= -1;
+	if(reverted) multValue *= -1;
 	switch(multType){
 		case 1:
 			await databaseUsers.update({ multScience: userdata.multScience+multValue }, {where: {userid: userID}});
@@ -358,37 +357,32 @@ async function updateUserdataMultStats(userID, multType, multValue, reverted = f
 async function updateUserdataGameStats(userID, isGameTypeTeamers, gameValue, reverted = false){		// -1 = defeat, 1 - win, 2 - firstPlace
 	try{
 		let userdata = await getUserdata(userID);
-		if(!isGameTypeTeamers){ 		// FFA
-			if(gameValue < 0)
-				await databaseUsers.update({ defeatsFFA: userdata.defeatsFFA+1-(2*reverted) }, { where: { userid: userID } });
-			if(gameValue > 0)
-				await databaseUsers.update({ winsFFA: userdata.winsFFA+1-(2*reverted) }, { where: { userid: userID } });
-			if(gameValue > 1)
-				await databaseUsers.update({ firstPlaceFFA: userdata.firstPlaceFFA+1-(2*reverted) }, { where: { userid: userID } });
-		} else {		// Teamers
-			if(gameValue < 0)
-				await databaseUsers.update({ defeatsTeamers: userdata.defeatsTeamers+1-(2*reverted) }, { where: { userid: userID } });
-			if(gameValue > 0)
-				await databaseUsers.update({ winsTeamers: userdata.winsTeamers+1-(2*reverted) }, { where: { userid: userID } });
+		if(isGameTypeTeamers == 0){ 		// FFA
+			if(gameValue < 0) await databaseUsers.update({ defeatsFFA: userdata.defeatsFFA+1-(2*reverted) }, { where: { userid: userID } });
+			if(gameValue > 0) await databaseUsers.update({ winsFFA: userdata.winsFFA+1-(2*reverted) }, { where: { userid: userID } });
+			if(gameValue > 1) await databaseUsers.update({ firstPlaceFFA: userdata.firstPlaceFFA+1-(2*reverted) }, { where: { userid: userID } });
+		} else {							// Teamers
+			if(gameValue < 0) await databaseUsers.update({ defeatsTeamers: userdata.defeatsTeamers+1-(2*reverted) }, { where: { userid: userID } });
+			if(gameValue > 0) await databaseUsers.update({ winsTeamers: userdata.winsTeamers+1-(2*reverted) }, { where: { userid: userID } });
 		}
 	} catch (errorUpdateUserdataGameStats){
 		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataGameStats"));
 	}
 }
 
-async function databaseRatingRegister(newGameType, userIDArray, ratingAddArray, ratingTypedAddArray, moneyAddArray, karmaAddArray, multType = 0){
+async function databaseRatingRegister(concatPlayerStats, gameType, multType){
 	maxID = await databaseRating.max('gameid');
 	newGameID = maxID ? maxID+1 : 1;
-	for(i in userIDArray){
+	for(i in concatPlayerStats){
 		await databaseRating.create({
-			gameid: newGameID, 
-			gameType: newGameType,
+			gameid: newGameID,
+			gameType: gameType,
 			multType: multType,
-			userid: userIDArray[i], 
-			ratingAdd: ratingAddArray[i], 
-			ratingTypedAdd: ratingTypedAddArray[i],
-			moneyAdd: moneyAddArray[i],
-			karmaAdd: karmaAddArray[i]
+			userid: concatPlayerStats[i].id,
+			ratingAdd: concatPlayerStats[i].drating, 
+			ratingTypedAdd: concatPlayerStats[i].dratingtyped,
+			moneyAdd: concatPlayerStats[i].dmoney,
+			karmaAdd: concatPlayerStats[i].dkarma,
 		});
 	}
 	return newGameID;
@@ -396,8 +390,7 @@ async function databaseRatingRegister(newGameType, userIDArray, ratingAddArray, 
 
 async function databaseRatingUnregister(registeredGameID){
 	maxID = await databaseRating.max('gameid');
-	if(maxID)
-		maxID = 1;
+	if(maxID) maxID = 1;
 	gameResults = await databaseRating.findAll({ where: {gameid: registeredGameID} });
 	if(gameResults.length != 0)
 		await databaseRating.update({isActive: 0}, {where: {gameid: registeredGameID}});
