@@ -6,10 +6,12 @@ const { String,
 const { roleRanksValue,
         FFARoleID,
         teamersRoleID,
-        tableTopRoleID, 
+        tableTopRoleID,
+        dotaRoleID,
         clanCreateCost, 
         clanRenameCost,
-        clanChangeColorCost } = require('./config.js');
+        clanChangeColorCost,
+        numbersEmoji } = require('./config.js');
 
 function getEmbed_NoVoice() {
     const embedMsg = new Discord.MessageEmbed()
@@ -296,13 +298,13 @@ function getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, gameType, 
             let tieLength = concatPlayerStats[i].tieIndex.length;
             if(tieLength != 0){
                 for(let j = 0; j <= tieLength; j++)
-                    placeStringArray[i+j] = String(1+i) + "-" + String(1+i+tieLength) + ". ";
+                    placeStringArray[i+j] = numbersEmoji[Number(1+i)] + " ... " + numbersEmoji[Number(1+i+tieLength)];
                 i += tieLength;
             } else 
-                placeStringArray[i] = String(1+i) + ". ";
+                placeStringArray[i] = numbersEmoji[Number(1+i)];
         }
         for(i in concatPlayerStats){
-            playersString += "**{0}{1}**".format(placeStringArray[i], concatPlayerStats[i].userinstance.tag);
+            playersString += "**{0} {1}**".format(placeStringArray[i], concatPlayerStats[i].userinstance.tag);
             if(concatPlayerStats[i].isLeave) 
                 playersString += " 💨";
             if(concatPlayerStats[i].subID != -1)
@@ -337,15 +339,15 @@ function getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, gameType, 
             let tieLength = concatPlayerStats[i*teamLength].tieIndex.length / teamLength;
             if(tieLength != 0){
                 for(let j = 0; j < (tieLength+1)*teamLength; j++)
-                    placeStringArray[i*teamLength+j] = String(1+i) + "-" + String(1+i+tieLength) + ". ";
+                    placeStringArray[i*teamLength+j] = numbersEmoji[Number(1+i)] + " ... " + numbersEmoji[Number(1+i+tieLength)];
                 i += tieLength;
             } else {
                 for(let j = 0; j < teamLength; j++)
-                    placeStringArray[i*teamLength+j] = String(1+i) + ". ";
+                    placeStringArray[i*teamLength+j] = numbersEmoji[Number(1+i)];
             }
         }
         for(i in concatPlayerStats){
-            playersString += "**{0}{1}**".format(placeStringArray[i], concatPlayerStats[i].userinstance.tag);
+            playersString += "**{0} {1}**".format(placeStringArray[i], concatPlayerStats[i].userinstance.tag);
             if(concatPlayerStats[i].isLeave) 
                 playersString += " 💨";
             if(concatPlayerStats[i].subID != -1)
@@ -580,7 +582,7 @@ function getEmbed_Welcome2(){
         
         🥰  3. Будьте доброжелательны, не будьте токсичными в общении с другими игроками.
         
-        📌 **Последнее обновление правил: 04.04.2021 г.**`)
+        📌 **Последнее обновление правил: 23.05.2021 г.**`)
         .setImage('https://cdn.discordapp.com/attachments/699241676048433202/808379645598105610/welcome2.png');
     return embedMsg;
 }
@@ -712,6 +714,63 @@ function getEmbed_Scrap(){
         • 30-59 ход – 3/4 игроков.
         • 60-79 ход – все, кроме 1 игрока.
         • 80+ ход – единогласно.`);
+    return embedMsg;
+}
+
+function getEmbed_Tie(){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#FF3D3D')
+        .setTitle('📌 Краткое описание правил: смена места и ничья')
+        .setDescription(`**Смена места** – договор нескольких игроков о том, что при подсчёте рейтинга вы будете занимать место выше, чем то, которое указано во вкладке \"Всемирный Рейтинг\".
+        Для смены места необходимо согласие **всех игроков, между которыми вы сменяете свою позицию**.
+
+        Примечание: СС с определённым победителем и соответствующей сменой остальных игроков __по счёту__ не является сменой места.
+        
+
+
+        **Ничья** – договор нескольких игроков о том, что все они занимают одно и то же место. При подсчёте рейтинга такие игроки приобретают или теряют меньше рейтинга друг от друга.
+
+        • **Фактическая ничья**: к концу игры несколько цивилизаций равны по счёту или одновременно побеждают какой-либо победой во время смены хода.
+        • **Договорная ничья**: игроки договариваются о том, что при подсчёте рейтинга они занимают одно и то же место.
+
+        Договорная ничья возможна с теми игроками, которые занимают **соседние с вами места**.
+        Для договорной ничьи вы обязаны получить согласие на это **от всех игроков, занимающих место, которое вы хотите разделить**.
+        Для договорной ничьи на **первом месте** вы обязаны получить согласие от **всех оставшихся игроков**.
+        `);
+    return embedMsg;
+}
+
+function getEmbed_Sub(){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#FF3D3D')
+        .setTitle('📌 Краткое описание правил: замена')
+        .setDescription(`Замена игрока – процедура, в результате которой один из игроков выходит из игры, и на его место приходит другой игрок, который будет продолжать игру за предыдущего. 
+        Новый игрок действует в полном соответствии с правилами, как если бы он полностью играл данную игру. При подсчете рейтинга считается, что заменяющий игрок победил предыдущего.
+        
+        Игрок может объявить о своей замене **в любой момент игры**, если имеет игрока, который будет его заменять. В данном случае исходный игрок не получит никаких наказаний за досрочный выход из игры.
+        
+        Игрок может заменить игрока, который покинул партию не по правилам, **в ход выхода из игры**. В таком случае исходный игрок получит наказание в обычном порядке. Игрок, который покинул данную партию, не сможет заменить в ней какого-либо игрока, кроме его заменяющего.
+        
+        • Для замены в *FFA* требуется отсутствие нарушений по правилу 1.3 (просмотр стрима).
+        • Для замены в *Teamers* дополнительно к этому требуется **согласие всех капитанов** команд на замену.
+        `);
+    return embedMsg;
+}
+
+function getEmbed_Leave(){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#FF3D3D')
+        .setTitle('📌 Краткое описание правил: лив')
+        .setDescription(`Запрещено покидать игру до её окончания. Вы можете покинуть игру без наказания в одном из случаев ниже.
+
+        • Вы потеряли хотя бы 2/3 своих городов.
+        • Вы потеряли изначальную столицу.
+        • Вас признали иррелевантным с помощью голосования (см. !irr).
+        • Вас заменил другой игрок (см. !sub).
+
+        Если игрок покинул игру не по правилам (например, по техническим причинам), то у него есть **10 минут** с момента выхода из игры, чтобы зайти в игру обратно. По истечении срока игрок признается покинувшим партию и получает за это соответствующее наказание.
+        Перед продолжением игры игроки решают, продолжать игру или искать нового игрока вместо ливнувшего игрока (см. !sub).
+        `);
     return embedMsg;
 }
 
@@ -1186,6 +1245,16 @@ function getEmbed_TableTopRole(author, giveRole){
     return embedMsg;
 }
 
+function getEmbed_DotaRole(author, giveRole){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🤬 Выдача роли Dota 2")
+        .setColor("#d82807")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(dotaRoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(dotaRoleID));
+    return embedMsg;
+}
+
 function getEmbed_Split(pickedTeamPlayers, unpickedPlayers, commandIndex, stepNumber, splitStatus, author, playersNumber, splitType){    // status: {0 = default, 1 = first, 2 = last & ready}, type: {0 = standard, 1 = fair}
     const emojiOrder = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟", "🇦", "🇧", "🇨", "🇩", "🇪", "🇫"];
     let commandList = ["", "", ""];
@@ -1234,6 +1303,30 @@ function getEmbed_ProfileDescription(author, descriptionString){
         .setDescription(descriptionString ? "**Описание профиля успешно изменено.**" : " **Описание профиля успешно сброшено.**")
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp();
+    return embedMsg;
+}
+
+function getEmbed_NewGameResult(newGameResults, author){
+    let isTeamers = (newGameResults.length < 10);
+    const separatorIndex = [2, isTeamers ? 3 : 8, newGameResults.length-3];
+    let resultString = "";
+    for(let i in newGameResults){
+        if(i == 0)
+            continue;
+        else if ((newGameResults[i].resultString != undefined)&&(newGameResults[i].resultString != ""))
+            resultString += (newGameResults[i].resultString + "\n");
+        if(isTeamers && (i == 3))
+            resultString += "🌋 **Стихийные бедствия** | 2️⃣\n🏞️ **Возраст мира** | 🏔️ Новый\n🤬 **Варвары** | <:No:808418109319938099> Отключены\n"
+        if(separatorIndex.includes(Number(i)))
+            resultString += "\n";
+    }
+
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle(newGameResults[0].resultString)
+        .setColor("#36393f")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setDescription(resultString);
     return embedMsg;
 }
 
@@ -1300,6 +1393,11 @@ module.exports = {
     getEmbed_FFARole,
     getEmbed_TeamersRole,
     getEmbed_TableTopRole,
+    getEmbed_DotaRole,
     getEmbed_Split,
     getEmbed_ProfileDescription,
+    getEmbed_NewGameResult,
+    getEmbed_Tie,
+    getEmbed_Sub,
+    getEmbed_Leave,
 }

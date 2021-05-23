@@ -29,8 +29,12 @@ const { getEmbed_Avatar,
         getEmbed_Save,
         getEmbed_FFARole,
         getEmbed_TableTopRole,
-        getEmbed_TeamersRole, 
-        getEmbed_ProfileDescription, } = require('./embedMessages.js');
+        getEmbed_TeamersRole,
+        getEmbed_DotaRole,
+        getEmbed_ProfileDescription,
+        getEmbed_Tie,
+        getEmbed_Sub,
+        getEmbed_Leave, } = require('./embedMessages.js');
 const { randomInteger,
         parseInteger,} = require('./functions.js');
 const { getUserdata,
@@ -59,6 +63,7 @@ const { proposalChannelID,
         FFARoleID,
         teamersRoleID, 
         tableTopRoleID,
+        dotaRoleID,
         descriptionLength, } = require('./config.js');
 const { catImage,
         dogImage } = require('./url.js');
@@ -245,23 +250,35 @@ async function vote(robot, message, args){
 }
 
 async function irrel(robot, message, args){
-    message.channel.send(getEmbed_Irrel());
+    await message.channel.send(getEmbed_Irrel());
 }
 
 async function cc(robot, message, args){
-    message.channel.send(getEmbed_CC())
+    await message.channel.send(getEmbed_CC())
 }
 
 async function scrap(robot, message, args){
-    message.channel.send(getEmbed_Scrap())
+    await message.channel.send(getEmbed_Scrap())
 }
 
 async function veto(robot, message, args){
-    message.channel.send(getEmbed_Veto())
+    await message.channel.send(getEmbed_Veto())
 }
 
 async function remap(robot, message, args){
-    message.channel.send(getEmbed_Remap())
+    await message.channel.send(getEmbed_Remap())
+}
+
+async function tie(robot, message, args){
+    await message.channel.send(getEmbed_Tie())
+}
+
+async function sub(robot, message, args){
+    await message.channel.send(getEmbed_Sub())
+}
+
+async function leave(robot, message, args){
+    await message.channel.send(getEmbed_Leave())
 }
 
 async function karma(robot, message, args){
@@ -451,6 +468,19 @@ async function description(robot, message, args){
     await updateUserdataDescription(message.author.id, descriptionString);
     await message.channel.send(getEmbed_ProfileDescription(message.author, descriptionString));
     return;
+}
+
+async function dota(robot, message, args){
+    let giveRole = true;
+    member = message.member;
+    dotaRole = await message.guild.roles.cache.get(dotaRoleID);
+    if(!member.roles.cache.has(dotaRoleID))
+        await member.roles.add(dotaRole);
+    else{
+        await member.roles.remove(dotaRole);
+        giveRole = false;
+    }
+    await message.channel.send(getEmbed_DotaRole(message.author, giveRole));
 }
 
 var commands =
@@ -656,6 +686,11 @@ var commands =
         about: "Выдать роль TableTop"
     },
     {
+        name: ["dota", "dota2"],
+        out: dota,
+        about: "Выдать роль Dota 2"
+    },
+    {
         name: ["split"],
         out: split,
         about: "Разделить игроков в лобби на команды"
@@ -664,6 +699,21 @@ var commands =
         name: ["desc", "description"],
         out: description,
         about: "Установить описание в профиль игрока"
+    },
+    {
+        name: ["sub"],
+        out: sub,
+        about: "Правила о замене игрока"
+    },
+    {
+        name: ["tie"],
+        out: tie,
+        about: "Правила о ничье"
+    },
+    {
+        name: ["leave"],
+        out: leave,
+        about: "Правила о ливе"
     },
 ]
 

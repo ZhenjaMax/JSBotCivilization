@@ -6,6 +6,7 @@ const { randomInteger,
 const { getEmbed_NoVoice, 
         getEmbed_WrongNumber, 
         getEmbed_NotEnoughCivilizations } = require('./embedMessages.js')
+const { indexNationPairArray } = require('./config.js');
 
 function getDraftFFA(playerCount, civilizationsCount, rawBans) {
     let { civilizations } = require("./config.js");
@@ -129,22 +130,6 @@ function draftFFA(robot, message, args, autoNewUsers = false) {
 
 let { civilizations } = require("./config.js");
 const civilizationValuesArray = Array.from(civilizations.values());
-
-indexNationPairArray = [
-    [2, 39],    // Англия (Виктория), Финикия
-    [31, 45],   // Норвегия, Япония
-    [19, 37],   // Канада, Россия
-    [3, 41],    // Алиенора Английская, Алиенора Французская
-    [40, 50],   // Екатерина Медичи (Чёрная королева), Екатерина Медичи (Великолепная)
-    [23, 34],   // Кри, Персия
-    [40, 28],   // Екатерина Медичи (Чёрная королева), Чингисхан
-    
-    [9, 10],    // Греция (2)
-    [14, 15],   // Индия (2)
-    [1, 49],    // Америка (2)
-    [28, 55],   // Монголия (2)
-    [20, 54],   // Китай (2)
-]
 
 function getDraftSwapIndexRoutine(draft, indexNationPair){
     indexA = draft.indexOf(civilizationValuesArray[indexNationPair[0]]);

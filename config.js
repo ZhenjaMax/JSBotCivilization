@@ -1,4 +1,4 @@
-const DEBUG = 0;
+const DEBUG = 1;
 
 const Discord = require('discord.js');
 const schedule = require('node-schedule');
@@ -63,6 +63,44 @@ const civilizations = new Map([
   ["<:vietnam:804417073140334603>",   "Вьетнам <:Vietnam:804417073140334603> Госпожа Чьеу"],
   ["<:portugal:825055292629844001>",  "Португалия <:Portugal:825055292629844001> Жуан III"],
 ]);
+
+indexNationPairArray = [
+  [2, 39],    // Англия (Виктория), Финикия
+  [31, 45],   // Норвегия, Япония
+  [19, 37],   // Канада, Россия
+  [23, 34],   // Кри, Персия
+  [40, 28],   // Екатерина Медичи (Чёрная королева), Чингисхан
+  [26, 57],   // Мали, Португалия
+
+  [40, 41],   // Екатерина Медичи (Чёрная Королева), Алиенора Французская
+  [2, 3],     // Алиенора Английская, Виктория
+
+  [9, 10],    // Греция (2)
+  [14, 15],   // Индия (2)
+  [1, 49],    // Америка (2)
+  [28, 55],   // Монголия (2)
+  [20, 54],   // Китай (2)
+];
+
+const numbersEmoji = [
+  "0️⃣",
+  "1️⃣",
+  "2️⃣",
+  "3️⃣",
+  "4️⃣",
+  "5️⃣",
+  "6️⃣",
+  "7️⃣",
+  "8️⃣",
+  "9️⃣",
+  "🔟",
+  "<:eleven:840562913492074496>",
+  "<:twelve:840562913496399902>",
+  "<:thirteen:840562913487749160>",
+  "<:fourteen:840562913270038549>",
+  "<:fifteen:840562913492074516>",
+  "<:sixteen:840562913449213982>",
+];
 
 const achievementsName = [
   "🚀 Учёный I",
@@ -234,6 +272,7 @@ const urlLength = 192;
 const FFARoleID = '820789027518021642';
 const teamersRoleID = '819672819990003754';
 const tableTopRoleID = '821871088412786688';
+const dotaRoleID = '845633047003922442';
 
 if(DEBUG)
   token = "ODE0MDQzOTQ1OTM1MTc1NzIw.YDYHgA.FaZvJTHJdIqia_yjtvaU0wowZCM";
@@ -244,7 +283,9 @@ const prefix = "!";
 const bot = new Discord.Client();
 
 module.exports = {
-  civilizations, 
+  civilizations,
+  indexNationPairArray,
+  numbersEmoji, 
   chatChannelID,
   botChannelID,
   welcomeChannelID,
@@ -285,4 +326,5 @@ module.exports = {
   FFARoleID,
   teamersRoleID,
   tableTopRoleID,
+  dotaRoleID,
 }
