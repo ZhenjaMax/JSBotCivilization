@@ -176,7 +176,7 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
                     if(args.shift() == "leave") 
                         playerStatsArray[playerStatsArray.length-1].isLeave = true;
                     if(gameTypeIndex == 0){                             // Индексы для ничьи
-                        for(let i = 0; i < playerStatsArray-1; i++){
+                        for(let i = 0; i < playerStatsArray.length-1; i++){
                             if(playerStatsArray[i].tieIndex.length != 0){
                                 for(let j = i+1; j < playersCount; j++)
                                     if(playerStatsArray[j].tieIndex.length == 0)
@@ -213,10 +213,10 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
                     for(i in playerStatsArray)
                         if(multIndex != 0){                                     // Выдача денег и кармы
                             playerStatsArray[i].dkarma = playersCount;
-                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount);
+                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount + 10*playersCount);
                         } else {
                             playerStatsArray[i].dkarma = Math.floor(playersCount/2);
-                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount + 10*playersCount);
+                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount);
                         }
                     for(i in subPlayerStatsArray){                       // Замены (учёт бонусов)
                         let subIndex = subPlayerStatsArray[i].subID;

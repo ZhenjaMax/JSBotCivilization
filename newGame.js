@@ -3,18 +3,34 @@ const { updateNewCooldownDate,
         getUserdata } = require('./database.js');
 const { draftFFA,
         draftTeam } = require('./draft.js');
-const { civilizations } = require('./config.js');
+const { civilizations,
+        numbersEmoji } = require('./config.js');
 const { getEmbed_NoVoice,
         getEmbed_Split,
-        getEmbed_Error } = require('./embedMessages.js');
+        getEmbed_Error,
+        getEmbed_NewGameResult } = require('./embedMessages.js');
 const { parsePlayers,
         deepCopy } = require('./functions.js');
 
 const trueFilter = (reaction, user) => {return true;};
-const emojiOrder = ["⛔", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟", "🇦", "🇧", "🇨", "🇩", "🇪", "🇫"];
+const emojiOrder = ["⛔"].concat(numbersEmoji.slice(1));
 const civilizationsEmoji = Array.from(civilizations.keys());
 const pickTeamStandart =  [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1];
 const pickTeamFair =      [0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0];
+const voiceChannelStart = [
+    "663144077818331190",
+    "698542233770786917", ];
+const voiceChannelsFFA = [
+    "710084028161851452",
+    "831677778784550952",
+    "711937516692832258",
+    "711937526784589896",
+    "711937543356022898", ];
+const voiceChannelsTeamers = [
+    "711937891974250507",
+    "711937939524943884",
+    "711937965475102750",
+    "711938004410695721" ];
 const messagesFFA = [
     {
         content: `📌 __**Голосование за настройки и правила FFA**__ 📌
@@ -24,6 +40,7 @@ const messagesFFA = [
         reactions: ["⛔"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
         content: `👥 __**Участники игры**__`,
@@ -31,6 +48,7 @@ const messagesFFA = [
         reactions: undefined,
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
         content: `⚡ __**Игроки, которые не проголосовали**__`,
@@ -38,83 +56,103 @@ const messagesFFA = [
         reactions: undefined,
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Карта**__`,
+        content: `🌍 **Карта**`,
         results: ["🇵 Пангея", "🇭 Нагорье", "7️⃣ Семь морей", "🇱 Озёра", "🇨 Континенты", "🇦 Архипелаги"],
         reactions: ["🇵", "🇭", "7️⃣", "🇱", "🇨", "🇦"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Стихийные бедствия**__`,
+        content: `🌋 **Стихийные бедствия**`,
         results: ["2️⃣", "3️⃣", "4️⃣"],
         reactions: ["2️⃣", "3️⃣", "4️⃣"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Бонусные ресурсы**__`,
-        results: ["🇸 Стандартные", "🇦 Изобильные"],
-        reactions: ["🇸", "🇦"],
+        content: `🌽 **Бонусные ресурсы**`,
+        results: ["🇸 Стандартные", "🌽 Изобильные"],
+        reactions: ["🇸", "🌽"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Стратегические ресурсы**__`,
-        results: ["🇸 Стандартные", "🇦 Изобильные", "<:Yes:808418109710794843> Гарантированные"],
-        reactions: ["🇸", "🇦", "<:Yes:808418109710794843>"],
+        content: `🐎 **Стратегические ресурсы**`,
+        results: ["🇸 Стандартные", "🐎 Изобильные", "<:Yes:808418109710794843> Гарантированные"],
+        reactions: ["🇸", "🐎", "<:Yes:808418109710794843>"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Количество чудес природы**__`,
+        content: `⭐ **Количество чудес природы**`,
         results: ["🌅 Стандартное", "🌠 Изобильное"],
         reactions: ["🌅", "🌠"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Возраст мира**__`,
+        content: `🏞️ **Возраст мира**`,
         results: ["🏕️  Стандартный", "🏔️ Новый"],
         reactions: ["🏕️", "🏔️"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Торговля золотом**__`,
+        content: `🪙 **Торговля золотом**`,
         results: ["<:No:808418109319938099> Запрещена", "🇦 Между союзниками", "🇫 Между друзьями и союзниками", "🪙 Разрешена"],
         reactions: ["<:No:808418109319938099>", "🇦", "🇫", "🪙"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Торговля стратегическими ресурсами**__`,
+        content: `🐴 **Торговля стратегическими ресурсами**`,
         results: ["<:No:808418109319938099> Запрещена", "🇦 Между союзниками", "🇫 Между друзьями и союзниками", "🐴 Разрешена"],
         reactions: ["<:No:808418109319938099>", "🇦", "🇫", "🐴"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Максимальное количество одновременных дружб и союзов в сумме**__`,
+        content: `🤝 **Число дружб**`,
         results: ["2️⃣", "3️⃣", "♾️"],
         reactions: ["2️⃣", "3️⃣", "♾️"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Общение**__`,
+        content: `⚔️ **Военный союз**`,
+        results: ["<:No:808418109319938099> Запрещен", "🗡️ Разрешен"],
+        reactions: ["<:No:808418109319938099>", "🗡️"],
+        instance: undefined,
+        collector: undefined,
+        resultString: "",
+    },
+    {
+        content: `💬 **Общение**`,
         results: ["🕵️ Любое", "📰 Только публичное"],
         reactions: ["🕵️", "📰"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Баны наций**__: *добавьте эмодзи нации под этим сообщением; если проголосует большинство, то нация окажется в бане.*`,
+        content: `🤔 **Баны наций**: *добавьте эмодзи нации под этим сообщением; если проголосует большинство, то нация окажется в бане.*`,
         results: [],     // далее устанавливается
         reactions: ["🤔"],     // далее изменяется
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
         content: `================================
@@ -124,22 +162,19 @@ const messagesFFA = [
         reactions: ["⚡"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
 ];
 const messagesTeamers = [
     {
         content: `📌 __**Голосование за настройки и правила Teamers**__ 📌
         *Не забудьте перед игрой ознакомиться с правилами в канале* <#817348028591243264>.
-        *Автор сообщения может отменить это голосование, нажав эмодзи  ⛔ под этим сообщением.*
-
-        *Базовые настройки для Teamers приведены ниже.*
-        __**Стихийные бедствия**__: 2️⃣
-        __**Возраст мира**__: 🏔️ Новый
-        __**Варвары**__: <:No:808418109319938099> Отключены`,
+        *Автор сообщения может отменить это голосование, нажав эмодзи  ⛔ под этим сообщением.*` + "\n\n*Базовые настройки для Teamers приведены ниже.*\n\n🌋 __**Стихийные бедствия**__ | 2️⃣\n🏞️ __**Возраст мира**__ | 🏔️ Новый\n🤬 __**Варвары**__ | <:No:808418109319938099> Отключены",
         results: undefined,
         reactions: ["⛔"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
         content: `👥 __**Участники игры**__`,
@@ -147,6 +182,7 @@ const messagesTeamers = [
         reactions: undefined,
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
         content: `⚡ __**Игроки, которые не проголосовали**__`,
@@ -154,34 +190,39 @@ const messagesTeamers = [
         reactions: undefined,
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Карта**__`,
+        content: `🌍 **Карта**`,
         results: ["🇵 Пангея", "🇭 Нагорье", "7️⃣ Семь морей", "🇱 Озёра", "🇨 Континенты", "🇦 Архипелаги", "🇮 Внутреннее море", "🇫 Фрактал", "🏝️ Континенты и острова"],
         reactions: ["🇵", "🇭", "7️⃣", "🇱", "🇨", "🇦", "🇮", "🇫", "🏝️"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Торговля реликвиями до 20 хода включительно**__`,
-        results: ["<:No:808418109319938099> Запрещена", "💨 Разрешена только в ход получения", "🗿 Разрешена"],
-        reactions: ["<:No:808418109319938099>", "💨", "🗿"],
+        content: `🗿 **Торговля реликвиями до 20 хода включительно**`,
+        results: ["<:No:808418109319938099> Запрещена", "🗿 Разрешена только в ход получения"],
+        reactions: ["<:No:808418109319938099>", "🗿"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Выборы двух капитанов команд**__`, 
+        content: `👑 **Выборы двух капитанов команд**`, 
         results: [],     // далее устанавливаются
         reactions: undefined,   // далее устанавливаются
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
-        content: `__**Баны наций**__: *добавьте эмодзи нации под этим сообщением; если проголосует большинство, то нация окажется в бане.*`,
+        content: `🤔 **Баны наций**: *добавьте эмодзи нации под этим сообщением; если проголосует большинство, то нация окажется в бане.*`,
         results: [],     // далее устанавливается
         reactions: ["🤔"],     // далее изменяется
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
     {
         content: `================================
@@ -191,6 +232,7 @@ const messagesTeamers = [
         reactions: ["⚡"],
         instance: undefined,
         collector: undefined,
+        resultString: "",
     },
 ];
 
@@ -278,10 +320,10 @@ async function split(robot, message, args, autoNewCapitans = false, autoUserID =
     });
     splitMessageCollector.on('end', async (collected, reason) => {
         if((reason.toLowerCase() == "time")||(userID.length != 0)){
-            await splitMessage.delete();
-        } else if(autoNewCapitans){
+            if(!splitMessage.deleted)
+                await splitMessage.delete();
+        } else if(autoNewCapitans)
             draftTeam(robot, message, autoArgsTeamersDraft);
-        }
         return;
     });
 }
@@ -309,7 +351,7 @@ async function newgameVoting(robot, message, args){
     for(let i = 0; i < usersID.length; i++)
         if(message.guild.members.cache.get(usersID[i]).user.bot)
             usersID.splice(i, 1);                               // Если в голосовом канале будет 2 бота, это может не сработать!
-    let usersSourceID = usersID.map((x) => x);
+    const usersSourceID = usersID.map((x) => x);
     let usersCount = usersID.length;
     let handler = args.shift();
     let gameType = (handler == "team") ? 1 : 0;
@@ -334,11 +376,34 @@ async function newgameVoting(robot, message, args){
     let civilizationsEmojiList = civilizationsEmoji.slice();
     let isFinished = false;
 
+    if(voiceChannelStart.indexOf(voiceChannel.id) != -1){
+        let channelIndex = 0, channelPlayersMinCount = 100, channelPlayersCount = 0;
+        if(gameType == 0){
+            for(i in voiceChannelsFFA){
+                channelPlayersCount = await robot.channels.cache.get(voiceChannelsFFA[i]).members.size;
+                if(channelPlayersCount < channelPlayersMinCount){
+                    channelPlayersMinCount = channelPlayersCount;
+                    channelIndex = Number(i);
+                }
+            }
+        } else {
+            for(i in voiceChannelsTeamers){
+                channelPlayersCount = await robot.channels.cache.get(voiceChannelsTeamers[i]).members.size;
+                if(channelPlayersCount < channelPlayersMinCount){
+                    channelPlayersMinCount = channelPlayersCount;
+                    channelIndex = Number(i);
+                }
+            }
+        }
+        for(userOfChannel of users.values())
+            await userOfChannel.voice.setChannel(gameType == 0 ? voiceChannelsFFA[channelIndex] : voiceChannelsTeamers[channelIndex]);
+    }
+
     const filter = (reaction, user) => {
         let k = 0;
         if(user.bot)
             return k;       // Неважно, если это бот (производится проверка)
-        if(!usersID.includes(user.id))
+        if(!usersSourceID.includes(user.id))
             return -1;      // не тот игрок
         for(let k in newGameMessages){
             if(newGameMessages[k].instance != undefined){
@@ -364,11 +429,10 @@ async function newgameVoting(robot, message, args){
                 newGameStringTemp += (" | " + "<@{0}>".format(newGameMessages[i].results[j]));
             else
                 newGameStringTemp += (" | " + newGameMessages[i].results[j]);
-        if(!isFinished)
-            newGameMessages[i].instance = await message.channel.send(newGameStringTemp);
-        if(!isFinished)
-            newGameMessages[i].collector = await newGameMessages[i].instance.createReactionCollector(trueFilter, {time: 185000});
-
+        if((i == 1))
+            newGameMessages[i].resultString = newGameStringTemp;
+        if(!isFinished) newGameMessages[i].instance = await message.channel.send(newGameStringTemp);
+        if(!isFinished) newGameMessages[i].collector = await newGameMessages[i].instance.createReactionCollector(trueFilter, {time: 185000});
         if(!isFinished) newGameMessages[i].collector.on('collect', async (reaction, user) => {
             if(user.bot) return;
             let filterIndex = filter(reaction, user);                    
@@ -402,8 +466,11 @@ async function newgameVoting(robot, message, args){
                         argsForDraft.push(nationEmojiName);
                     }
                 } else if(filterIndex == newGameMessages.length-1){              // Молния
-                    newGameMessages[2].results.splice(usersID.indexOf(user.id), 1);
-                    usersID.splice(usersID.indexOf(user.id), 1);
+                    let userSpliceIndex = usersID.indexOf(user.id);
+                    if(userSpliceIndex == -1)
+                        return;
+                    newGameMessages[2].results.splice(userSpliceIndex, 1);
+                    usersID.splice(userSpliceIndex, 1);
                     let collectStringTemp = newGameMessages[2].content + " **({0})**".format(usersID.length);
                     for(j in newGameMessages[2].results)
                         collectStringTemp += (" | " + "<@{0}>".format(newGameMessages[2].results[j]));
@@ -418,51 +485,50 @@ async function newgameVoting(robot, message, args){
             if(reason == "messageDelete" || isFinished)
                 return;
             isFinished = true;
-            for(j in newGameMessages){
-                if(j == 0){
-                    await newGameMessages[j].instance.edit("📌 __**Результат голосования за настройки и правила {0}**__ 📌".format(gameType ? "Teamers\n*Базовые настройки для Teamers приведены ниже.*\n__**Стихийные бедствия**__: 2️⃣ \n__**Возраст мира**__: 🏔️ Новый\n__**Варвары**__: <:No:808418109319938099> Отключены" : "FFA"));
-                    await newGameMessages[j].instance.reactions.removeAll();
-                } else if(j == 1){
-                    continue;
-                } else if(j == 2){
-                    await newGameMessages[j].instance.delete();
-                } else if((j == newGameMessages.length-3)&&(gameType == 1)){
-                    let newGameStringTempEnd = newGameMessages[j].content + " | ";
-                    let collectedReactionsArray = await newGameMessages[j].instance.reactions.cache.array();
-                    let collectedReactionsCountArray = collectedReactionsArray.map(function(element){ return element.count; });
-                    for(let k = 0; k < 2; k++){
-                        let maxReactionIndex = collectedReactionsCountArray.indexOf(Math.max(...collectedReactionsCountArray));
-                        capitansID.push(usersSourceID[maxReactionIndex]);
-                        newGameStringTempEnd += newGameMessages[j].results[maxReactionIndex];
-                        if(k == 0)
-                            newGameStringTempEnd += " и ";
-                        collectedReactionsCountArray[maxReactionIndex] = 0;
-                    }
-                    newGameMessages[j].instance.edit(newGameStringTempEnd);
-                    await newGameMessages[j].instance.reactions.removeAll();
-                } else if(j == newGameMessages.length-2){
-                    let newGameStringTempEnd = `__**Баны наций:**__`;
-                    for(k in newGameMessages[j].results)
-                        newGameStringTempEnd += ("\n" + newGameMessages[j].results[k]);
-                    if(newGameMessages[j].results.length == 0)
-                        newGameStringTempEnd += " (нет)";
-                    await newGameMessages[j].instance.edit(newGameStringTempEnd);
-                    await newGameMessages[j].instance.reactions.removeAll();
-                } else if(j == newGameMessages.length-1){
-                    newGameMessages[j].instance.delete();
-                } else {
-                    let collectedReactionsArray = await newGameMessages[j].instance.reactions.cache.array();
-                    let collectedReactionsCountArray = collectedReactionsArray.map(function(element){ return element.count; });
-                    let maxReactionIndex =  collectedReactionsCountArray.indexOf(Math.max(...collectedReactionsCountArray));
-                    await newGameMessages[j].instance.edit(newGameMessages[j].content + " | " + newGameMessages[j].results[maxReactionIndex]);
-                    await newGameMessages[j].instance.reactions.removeAll();
+            for(let j=0; j<newGameMessages.length; j++)
+                switch(j){
+                    case 0:
+                        newGameMessages[j].resultString = "📌 **Результат голосования за настройки и правила {0}".format(gameType ? "Teamers** 📌" : "FFA** 📌");
+                    case 1:
+                    case 2:
+                    case newGameMessages.length-1:
+                        break;
+                    case newGameMessages.length-3:
+                        if(gameType == 1){
+                            let newGameStringCapitans = newGameMessages[j].content + " | ";
+                            let collectedReactionsArray = await newGameMessages[j].instance.reactions.cache.array();
+                            let collectedReactionsCountArray = collectedReactionsArray.map(function(element){ return element.count; });
+                            for(let k = 0; k < 2; k++){
+                                let maxReactionIndex = collectedReactionsCountArray.indexOf(Math.max(...collectedReactionsCountArray));
+                                capitansID.push(usersSourceID[maxReactionIndex]);
+                                newGameStringCapitans += newGameMessages[j].results[maxReactionIndex];
+                                if(k == 0) newGameStringCapitans += " и ";
+                                collectedReactionsCountArray[maxReactionIndex] = 0;
+                            }
+                            newGameMessages[j].resultString = newGameStringCapitans;
+                        }
+                        break;
+                    case newGameMessages.length-2:
+                        let newGameStringBans = `🤔 __**Баны наций:**__`;
+                        if(newGameMessages[j].results.length == 0)
+                            newGameStringBans += " (нет)";
+                        else for(k in newGameMessages[j].results)
+                            newGameStringBans += ("\n" + newGameMessages[j].results[k]);
+                        newGameMessages[j].resultString = newGameStringBans;
+                        break;
+                    default:
+                        let collectedReactionsArray = await newGameMessages[j].instance.reactions.cache.array();
+                        let collectedReactionsCountArray = collectedReactionsArray.map(function(element){ return element.count; });
+                        let maxReactionIndex =  collectedReactionsCountArray.indexOf(Math.max(...collectedReactionsCountArray));
+                        newGameMessages[j].resultString = newGameMessages[j].content + " | " + newGameMessages[j].results[maxReactionIndex];
+                        break;
                 }
-            }
+            await message.channel.send(getEmbed_NewGameResult(newGameMessages, message.author));
             await updateNewCooldownDate(authorID, true);
-            if(gameType == 0)
-                await draftFFA(robot, message, argsForDraft, users);
-            else
-                await split(robot, message, args, capitansID, usersSourceID, argsForDraft);
+            gameType == 0 ? await draftFFA(robot, message, argsForDraft, users) : await split(robot, message, args, capitansID, usersSourceID, argsForDraft);
+            for(j in newGameMessages)
+                if(newGameMessages[j].instance != undefined)
+                    await newGameMessages[j].instance.delete();
         });
 
         for(j in newGameMessages[i].reactions)
