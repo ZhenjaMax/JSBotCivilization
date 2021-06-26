@@ -1,24 +1,15 @@
 // ЗДЕСЬ ПРОИСХОДИТ ТОЛЬКО ВЗАИМОДЕЙСТВИЕ С БАЗОЙ ДАННЫХ,
-// В ТОЧНОСТИ - ИМПОРТ И ЭКСПОРТ, СОЗДАНИЕ И УДАЛЕНИЕ.
-// UPD: СОХРАНЕНИЕ КОПИЙ
+// В ТОЧНОСТИ - ИМПОРТ И ЭКСПОРТ, СОЗДАНИЕ И УДАЛЕНИЕ,
+// СОХРАНЕНИЕ КОПИЙ БАЗ ДАННЫХ: АВТОМАТИЧЕСКОЕ И РУЧНОЕ.
 // НЕ НУЖНО ВКЛЮЧАТЬ СЮДА ОСТАЛЬНЫЕ ВЗАИМОДЕЙСТВИЯ.
-
-// DataGeneral
-// DataTimings
-// DataClans
-// DataAchivements
+// DataAchivements?
 
 const 	Sequelize = require('sequelize');
-const { getEmbed_UnknownError } = require('./embedMessages.js');
-const { bot,
-		chatChannelID,
-		roleAdministratorID,
-		roleModeratorID,
-		roleSupportID,
-		roleBannedID,
-		ownerID } = require('./config.js');
-const { String } = require('./functions.js');
+const { String,
+		deepCopy } = require('./functions.js');
 const { copyFile } = require("fs/promises");
+
+const dbList = ["databaseUsers", "databaseRating", "databaseClans"];
 
 const databaseUsersSequelize = new Sequelize('database', 'user', 'password', {
 	host: 		'localhost',
@@ -44,11 +35,11 @@ const databaseClansSequelize = new Sequelize('database', 'user', 'password', {
 const databaseUsers = databaseUsersSequelize.define('users', {
     userid: 		{ type: Sequelize.STRING, 	unique: true },
 	description: 	{ type: Sequelize.TEXT },
-	registration:	{ type: Sequelize.DATE, 	defaultValue: new Date() },
+	avatarURL:		{ type: Sequelize.STRING },
+
     rating: 		{ type: Sequelize.INTEGER, 	defaultValue: 1000, 		allowNull: false },
   	ratingffa: 		{ type: Sequelize.INTEGER, 	defaultValue: 1000, 		allowNull: false },
   	ratingteam: 	{ type: Sequelize.INTEGER, 	defaultValue: 1000, 		allowNull: false },
-	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	
 	winsFFA: 		{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	defeatsFFA: 	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
@@ -63,27 +54,29 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 	multDiplomatic:	{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	multScore:		{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 
-	banned: 		{ type: Sequelize.DATE },
-	mutedvoice: 	{ type: Sequelize.DATE },
-	mutedchat: 		{ type: Sequelize.DATE },
+	banned: 		{ type: Sequelize.DATE, 	defaultValue: null },
+	mutedvoice: 	{ type: Sequelize.DATE,		defaultValue: null },
+	mutedchat: 		{ type: Sequelize.DATE,		defaultValue: null },
 
 	karma: 			{ type: Sequelize.INTEGER, 	defaultValue: 50,			allowNull: false },
+	money: 			{ type: Sequelize.INTEGER, 	defaultValue: 0, 			allowNull: false },
 	likes:			{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
 	dislikes: 		{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
+	weakPoints: 	{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
 
 	achievements: 	{ type: Sequelize.STRING, 	defaultValue: '000000', 	allowNull: false },
 
 	bonusStreak:	{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },
-	bonusCooldown:	{ type: Sequelize.DATE },
-	likeCooldown:	{ type: Sequelize.DATE },
-	dislikeCooldown:{ type: Sequelize.DATE },
-	newCooldown:	{ type: Sequelize.DATE },
-	proposalCooldown:{type: Sequelize.DATE },
+	bonusCooldown:	{ type: Sequelize.DATE,		defaultValue: null },
+	likeCooldown:	{ type: Sequelize.DATE,		defaultValue: null },
+	dislikeCooldown:{ type: Sequelize.DATE,		defaultValue: null },
+	newCooldown:	{ type: Sequelize.DATE,		defaultValue: null },
+	proposalCooldown:{type: Sequelize.DATE,		defaultValue: null },
 
 	clanid:			{ type: Sequelize.STRING },													// ID роли клана
 	clanStatus:		{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },	// 0 - игрок, 1 - модератор, 2 - создатель клана
-	clanJoinCooldown:{type: Sequelize.DATE },
-	clanInviteCooldown:{type: Sequelize.DATE },
+	clanJoinCooldown:{type: Sequelize.DATE,		defaultValue: null },
+	clanInviteCooldown:{type: Sequelize.DATE,	defaultValue: null },
 });
 
 const databaseRating = databaseRatingSequelize.define('users', {
@@ -110,264 +103,65 @@ const databaseClans = databaseClansSequelize.define('users', {
 	color:			{ type: Sequelize.STRING,	defaultValue: "#5395d7" },
 });
 
-async function getUserdata(userID){
-	try{
-		let userdata = await databaseUsers.findOne({ where: { userid: userID } });
+async function checkUserData(userID){ return await databaseUsers.findOne({ where: { userid: userID } }); }
+async function createUserdata(userID){ return await databaseUsers.create({userid: userID}); }
+
+async function getUserdata(usersID){
+	if(!Array.isArray(usersID))
+		usersID = [usersID];
+	usersData = [];
+	for(i in usersID){
+		userdata = await databaseUsers.findOne( { where: { userid: usersID[i] } });
 		if(!userdata){
-			await createUserdata(userID);
-			userdata = await databaseUsers.findOne({ where: { userid: userID } });
+			await createUserdata(usersID[i]);
+			userdata = await databaseUsers.findOne({ where: { userid: usersID[i] } });
 		}
-		return userdata;
-	} catch (errorGetUserdata){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetUserdata"));
+		usersData.push(deepCopy(userdata.dataValues));
+		delete usersData[usersData.length-1].id;
+		delete usersData[usersData.length-1].createdAt;
+		delete usersData[usersData.length-1].updatedAt;
 	}
+	return (usersData.length == 1) ? usersData[0] : usersData;
 }
 
-async function checkUserSilent(userID){
-	try{
-		return await databaseUsers.findOne({ where: { userid: userID } });
-	} catch (errorCheckUserSilent){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorCheckUserSilent"));
-	}
-}
-
-async function createUserdata(userID){		// Здесь производится печать
-	try{
-		return await databaseUsers.create({userid: userID});
-	} catch (errorCreateUserdata) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorCreateUserdata"));
-	}
+async function setUserdata(usersData){
+	if(!Array.isArray(usersData))
+		usersData = [usersData];
+	for(i in usersData)
+		if(usersData[i]) await databaseUsers.update(usersData[i], { where: { userid: usersData[i].userid } });
 }
 
 async function getAllUserdataBanned(){
-	try{
-		return await databaseUsers.findAll( {where: { banned: { [Sequelize.Op.not]: null }}} );
-	} catch (errorGetUserdataBanned) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataBanned"));
-	}
+	usersdata = await databaseUsers.findAll( {where: { banned: { [Sequelize.Op.not]: null }}} );
+	return usersdata.map(x => {
+		x = x.dataValues;
+		delete x.id;
+		delete x.createdAt;
+		delete x.updatedAt;
+		return x;
+	});
 }
 
 async function getAllUserdataMuted(){
-	try{
-		return await databaseUsers.findAll( {where: { mutedvoice: { [Sequelize.Op.not]: null }}} );
-	} catch (errorGetUserdataMuted) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataMuted"));
-	}
+	usersdata = await databaseUsers.findAll( {where: { mutedvoice: { [Sequelize.Op.not]: null }}} );
+	return usersdata.map(x => {
+		x = x.dataValues;
+		delete x.id;
+		delete x.createdAt;
+		delete x.updatedAt;
+		return x;
+	});
 }
 
 async function getAllUserdataNoChat(){
-	try{
-		return await databaseUsers.findAll( {where: { mutedchat: { [Sequelize.Op.not]: null }}} );
-	} catch (errorGetUserdataNoChat) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGetAllUserdataNoChat"));
-	}
-}
-
-async function updateUserdataDescription(userID, descriptionString){
-	return await databaseUsers.update({ description: descriptionString }, { where: { userid: userID } });
-}
-
-async function updateUserdataBanned(userID, bannedStatus){
-	try{
-		let userdata = await getUserdata(userID);
-		if(!userdata)
-			await createUserdata(userID);
-		await databaseUsers.update({ banned: bannedStatus }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataBanned){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataBanned"));
-	}
-}
-
-async function updateUserdataMuted(userID, mutedStatus){
-	try{
-		let userdata = await getUserdata(userID);
-		if(!userdata)
-			await createUserdata(userID);
-		await databaseUsers.update({ mutedvoice: mutedStatus }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataMuted){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataMuted"));
-	}
-}
-
-async function updateUserdataNochat(userID, nochatStatus){
-	try{
-		let userdata = await getUserdata(userID);
-		if(!userdata)
-			await createUserdata(userID);
-		await databaseUsers.update({ mutedchat: nochatStatus }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataNochat){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataNochat"));
-	}
-}
-
-async function updateUserdataRating(userID, ratingNew){
-	try{
-		let userdata = await getUserdata(userID);
-		if(!userdata)
-			await createUserdata(userID);
-		await databaseUsers.update({ rating: ratingNew }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataRating){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataRating"));
-	}
-}
-
-async function updateUserdataRatingTyped(userID, ratingNew, typeTeamFlag){
-	try{
-		let userdata = await getUserdata(userID);
-		if(!userdata)
-			await createUserdata(userID);
-		if(typeTeamFlag)
-			await databaseUsers.update({ ratingteam: ratingNew }, { where: { userid: userID } });
-		else
-			await databaseUsers.update({ ratingffa: ratingNew }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataRating){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataRating"));
-	}
-}
-
-async function updateUserdataKarma(userID, karmaNew){
-	try{
-		let userdata = await getUserdata(userID);
-		if(!userdata)
-			await createUserdata(userID);
-		await databaseUsers.update({ karma: karmaNew }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataKarma){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataKarma"));
-	}
-}
-
-async function updateUserdataLikeIncrement(userID){
-	try{
-		let userdata = await getUserdata(userID);
-		if(!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		await databaseUsers.update({ likes: userdata.likes+1 }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataLikeIncrement){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataLikeIncrement"));
-	}
-}
-
-async function updateUserdataDislikeIncrement(userID){
-	try{
-		let userdata = await getUserdata(userID);
-		if (!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		return await databaseUsers.update({ dislikes: userdata.dislikes+1 }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataLikeIncrement){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataDislikeIncrement"));
-	}
-}
-
-async function updateUserdataLikeCooldown(userID){
-	try{
-		let userdata = await getUserdata(userID);
-		if (!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		likeDate = new Date();
-		return await databaseUsers.update({ likeCooldown: likeDate }, { where: { userid: userID } });
-	} catch (errorupdateUserdataLikeCooldown){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorupdateUserdataLikeCooldown"));
-	}
-}
-
-async function updateUserdataDislikeCooldown(userID){
-	try{
-		let userdata = await getUserdata(userID);
-		if (!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		dislikeDate = new Date();
-		return await databaseUsers.update({ dislikeCooldown: dislikeDate }, { where: { userid: userID } });
-	} catch (errorupdateUserdataDislikeCooldown){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorupdateUserdataDislikeCooldown"));
-	}
-}
-
-async function updateUserdataBonusCooldown(userID, currentDate){
-	try{
-		let userdata = await getUserdata(userID);
-		if (!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		return await databaseUsers.update({ bonusCooldown: currentDate }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataBonusCooldown){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataBonusCooldown"));
-	}
-}
-
-async function updateNewCooldownDate(userID, isClear = false){
-	try{
-		let newCooldownDate = isClear ? null : new Date();
-		return await databaseUsers.update({ newCooldown: newCooldownDate }, { where: { userid: userID } });
-	} catch (errorUpdateNewCooldownDate) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateNewCooldownDate"));
-	}
-}
-
-async function setUserdataMoney(userID, moneyValue){
-	try{
-		return await databaseUsers.update({ money: moneyValue }, { where: { userid: userID } });
-	} catch (errorSetUserdataMoney) {
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorSetUserdataMoney"));
-	}
-}
-
-async function setUserdataBonusStreak(userID, daysValue){
-	try{
-		return await databaseUsers.update({ bonusStreak: daysValue }, { where: { userid: userID } })
-	} catch (errorSetUserdataBonusStreak){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorSetUserdataBonusStreak"));
-	}
-}
-
-async function updateUserdataMultStats(userID, multType, multValue, reverted = false){
-	let userdata = await getUserdata(userID);
-	if(reverted) multValue *= -1;
-	switch(multType){
-		case 1:
-			await databaseUsers.update({ multScience: userdata.multScience+multValue }, {where: {userid: userID}});
-			break;
-		case 2:
-			await databaseUsers.update({ multCulture: userdata.multCulture+multValue }, {where: {userid: userID}});
-			break;
-		case 3:
-			await databaseUsers.update({ multDomination: userdata.multDomination+multValue }, {where: {userid: userID}});
-			break;
-		case 4:
-			await databaseUsers.update({ multReligious: userdata.multReligious+multValue }, {where: {userid: userID}});
-			break;
-		case 5:
-			await databaseUsers.update({ multDiplomatic: userdata.multDiplomatic+multValue }, {where: {userid: userID}});
-			break;
-		case 6:
-			await databaseUsers.update({ multScore: userdata.multScore+multValue }, {where: {userid: userID}});
-			break;
-	}
-	return;
-}
-
-async function updateUserdataGameStats(userID, isGameTypeTeamers, gameValue, reverted = false){		// -1 = defeat, 1 - win, 2 - firstPlace
-	try{
-		let userdata = await getUserdata(userID);
-		if(isGameTypeTeamers == 0){ 		// FFA
-			if(gameValue < 0) await databaseUsers.update({ defeatsFFA: userdata.defeatsFFA+1-(2*reverted) }, { where: { userid: userID } });
-			if(gameValue > 0) await databaseUsers.update({ winsFFA: userdata.winsFFA+1-(2*reverted) }, { where: { userid: userID } });
-			if(gameValue > 1) await databaseUsers.update({ firstPlaceFFA: userdata.firstPlaceFFA+1-(2*reverted) }, { where: { userid: userID } });
-		} else {							// Teamers
-			if(gameValue < 0) await databaseUsers.update({ defeatsTeamers: userdata.defeatsTeamers+1-(2*reverted) }, { where: { userid: userID } });
-			if(gameValue > 0) await databaseUsers.update({ winsTeamers: userdata.winsTeamers+1-(2*reverted) }, { where: { userid: userID } });
-		}
-	} catch (errorUpdateUserdataGameStats){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataGameStats"));
-	}
+	usersdata = await databaseUsers.findAll( {where: { mutedchat: { [Sequelize.Op.not]: null }}} );
+	return usersdata.map(x => {
+		x = x.dataValues;
+		delete x.id;
+		delete x.createdAt;
+		delete x.updatedAt;
+		return x;
+	});
 }
 
 async function databaseRatingRegister(concatPlayerStats, gameType, multType){
@@ -397,19 +191,6 @@ async function databaseRatingUnregister(registeredGameID){
 	return gameResults;
 }
 
-async function updateUserdataProposalCooldown(userID, currentDate){
-	try{
-		let userdata = await getUserdata(userID);
-		if (!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		return await databaseUsers.update({ proposalCooldown: currentDate }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataProposalCooldown){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataProposalCooldown"));
-	}
-}
-
 async function clanCreate(userID, roleID, nameString, textChannelID){
 	await databaseClans.create({
 		clanid: roleID,
@@ -420,107 +201,40 @@ async function clanCreate(userID, roleID, nameString, textChannelID){
 	});
 }
 
-async function clanGetData(clanID){
-	return await databaseClans.findOne({ where: { clanid: clanID } });
+async function getClanData(clanID){
+	clandata = await databaseClans.findOne({ where: { clanid: clanID } });
+	clandata = clandata.dataValues;
+	delete clandata.id;
+	delete clandata.createdAt;
+	delete clandata.updatedAt;
+	return clandata;
 }
 
-async function clanDelete(clanID){
-	return await databaseClans.destroy({ where: { clanid: clanID } });
-}
-
-async function clanUpdateMoney(clanID, moneyValue){
-	return await databaseClans.update({ money: moneyValue }, { where: { clanid: clanID } });
-}
-
-async function clanUpdateAvatar(clanID, url){
-	return await databaseClans.update({ avatarURL: url }, { where: { clanid: clanID } });
-}
-
-async function clanUpdateLeader(clanID, userID){
-	return await databaseClans.update({ leaderid: userID }, { where: { clanid: clanID } });
-}
+async function setClanData(clandata){ await databaseClans.update(clandata, { where: { clanid: clandata.clanid } }); }
+async function clanDelete(clanID){ return await databaseClans.destroy({ where: { clanid: clanID } }); }
 
 async function clanCheckClanName(nameString){
-	return await databaseClans.findAll({ where: { name: nameString } });
-}
-
-async function clanUpdateName(clanID, nameString){
-	return await databaseClans.update({ name: nameString }, { where: { clanid: clanID } });
-}
-
-async function clanUpdateDescription(clanID, descriptionString){
-	return await databaseClans.update({ description: descriptionString }, { where: { clanid: clanID } });
-}
-
-async function clanUpdateColor(clanID, colorString){
-	return await databaseClans.update({ color: colorString }, { where: { clanid: clanID } });
-}
-
-async function updateUserdataClanID(userID, clanID = null){
-	return await databaseUsers.update({ clanid: clanID }, { where: { userid: userID } });
-}
-
-async function updateUserdataClanStatus(userID, clanStatusValue){
-	return await databaseUsers.update({ clanStatus: clanStatusValue }, { where: { userid: userID } });
-}
-
-async function updateUserdataJoinCooldown(userID, currentDate){
-	try{
-		let userdata = await getUserdata(userID);
-		if (!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		return await databaseUsers.update({ clanJoinCooldown: currentDate }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataJoinCooldown){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataJoinCooldown"));
-	}
-}
-
-async function updateUserdataInviteCooldown(userID, currentDate){
-	try{
-		let userdata = await getUserdata(userID);
-		if (!userdata){
-			await createUserdata(userID);
-			userdata = await getUserdata(userID);
-		}
-		return await databaseUsers.update({ clanInviteCooldown: currentDate }, { where: { userid: userID } });
-	} catch (errorUpdateUserdataInviteCooldown){
-		bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorUpdateUserdataInviteCooldown"));
-	}
+	clanList = await databaseClans.findAll({ where: { name: nameString } });
+	return (clanList.length != 0);
 }
 
 async function clearAllUserdataClan(clanID){
 	await databaseUsers.update({ clanStatus: 0 }, { where: { clanid: clanID } });
 	await databaseUsers.update({ clanid: null }, { where: { clanid: clanID } });
-	return;
 }
 
-async function getAllClans(){
-	return await databaseClans.findAll();
-}
-
-async function getAllUserdataClan(clanID){
-	return await databaseUsers.findAll({ where: { clanid: clanID } });
-}
+async function getAllClans(){ return await databaseClans.findAll(); }
+async function getAllUserdataClan(clanID){ return await databaseUsers.findAll({ where: { clanid: clanID } }); }
 
 async function getAllUsersNewCooldown(){
-	return await databaseUsers.findAll({where: {newCooldown: {[Sequelize.Op.ne]: null}}})
-}
-
-function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
-	let currentLevel = 1;
-	if (user.roles.cache.has(roleSupportID))
-		currentLevel = 2;
-	else if (user.roles.cache.has(roleModeratorID))
-		currentLevel = 3;
-	else if (user.roles.cache.has(roleAdministratorID))
-		currentLevel = 4;
-	if(user.roles.cache.has(roleBannedID))
-		currentLevel = 0;
-	if (user.id == ownerID)
-		currentLevel = 5;
-	return (level <= currentLevel);
+	usersdata = await databaseUsers.findAll({where: {newCooldown: {[Sequelize.Op.ne]: null}}});
+	return usersdata.map(x => {
+		x = x.dataValues;
+		delete x.id;
+		delete x.createdAt;
+		delete x.updatedAt;
+		return x;
+	});
 }
 
 async function syncDatabase(){
@@ -530,7 +244,6 @@ async function syncDatabase(){
 }
 
 async function saveDatabases(){
-	const dbList = ["databaseUsers", "databaseRating", "databaseClans"]
     currentDate = new Date();
 	for(db of dbList)
         await copyFile('{0}.sqlite'.format(db), './db_backups/{0}_{1}-{2}-{3}_{4}-{5}.sqlite'.format(db, currentDate.getFullYear(), currentDate.getMonth()+1, 
@@ -540,59 +253,28 @@ async function saveDatabases(){
 }
 
 module.exports = { 
+	checkUserData,
 	getUserdata,
 	createUserdata,
-	syncDatabase,
-	hasPermissionLevel,
+	setUserdata,
 
-	updateUserdataDescription,
-	updateUserdataRating,
-	updateUserdataRatingTyped,
-	updateUserdataGameStats,
-	updateUserdataMultStats,
-	updateUserdataKarma,
-	updateUserdataLikeIncrement,
-	updateUserdataLikeCooldown,
-	updateUserdataDislikeIncrement,
-	updateUserdataDislikeCooldown,
-
-	updateUserdataBanned,
-	updateUserdataMuted,
-	updateUserdataNochat,
+	getAllUsersNewCooldown,
 	getAllUserdataBanned,
 	getAllUserdataMuted,
 	getAllUserdataNoChat,
-
-	checkUserSilent,
-
-	updateNewCooldownDate,
-	setUserdataMoney,
-	setUserdataBonusStreak,
-	updateUserdataBonusCooldown,
-	updateUserdataProposalCooldown,
 
 	databaseRatingRegister,
 	databaseRatingUnregister,
 
 	clanCreate,
 	clanDelete,
-	clanGetData,
-	clanUpdateMoney,
-	clanUpdateAvatar,
-	clanUpdateLeader,
+	getClanData,
+	setClanData,
 	clanCheckClanName,
-	clanUpdateName,
-	updateUserdataClanID,
-	updateUserdataClanStatus,
 	clearAllUserdataClan,
 	getAllUserdataClan,
-	clanUpdateDescription,
-	clanUpdateColor,
-	updateUserdataJoinCooldown,
-	updateUserdataInviteCooldown,
 	getAllClans,
 
+	syncDatabase,
 	saveDatabases,
-
-	getAllUsersNewCooldown,
 }

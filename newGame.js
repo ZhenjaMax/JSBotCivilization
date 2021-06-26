@@ -1,4 +1,4 @@
-const { updateNewCooldownDate,
+const { setUserdata,
         getAllUsersNewCooldown,
         getUserdata } = require('./database.js');
 const { draftFFA,
@@ -10,9 +10,9 @@ const { getEmbed_NoVoice,
         getEmbed_Error,
         getEmbed_NewGameResult } = require('./embedMessages.js');
 const { parsePlayers,
-        deepCopy } = require('./functions.js');
+        deepCopy,
+        trueFilter } = require('./functions.js');
 
-const trueFilter = (reaction, user) => {return true;};
 const emojiOrder = ["⛔"].concat(numbersEmoji.slice(1));
 const civilizationsEmoji = Array.from(civilizations.keys());
 const pickTeamStandart =  [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1];
@@ -242,20 +242,20 @@ async function split(robot, message, args, autoNewCapitans = false, autoUserID =
     if(!autoNewCapitans){
         voiceChannel = message.member.voice.channel;
         if(voiceChannel == null)
-            return message.channel.send(getEmbed_NoVoice());
+            return await message.channel.send(getEmbed_NoVoice());
         capitansID = [message.author.id, parsePlayers(message.content)[0]];
         if(capitansID[1] == undefined)
-            return message.channel.send(getEmbed_Error("Необходимо указать пользователя в качестве второго капитана."));
+            return await message.channel.send(getEmbed_Error("Необходимо указать пользователя в качестве второго капитана."));
         if(capitansID[1] == capitansID[0])
-            return message.channel.send(getEmbed_Error("Укажите другого игрока в качестве капитана, вы являетесь первым капитаном."));
+            return await message.channel.send(getEmbed_Error("Укажите другого игрока в качестве капитана, вы являетесь первым капитаном."));
         membersArray = await message.member.voice.channel.members.filter(member => !(member.user.bot))
         userID = membersArray.keyArray();
         if(userID.length%2 == 1)
-            return message.channel.send(getEmbed_Error("Для разделения необходимо чётное число игроков!"));
+            return await message.channel.send(getEmbed_Error("Для разделения необходимо чётное число игроков!"));
         if((userID.length < 4)||(userID.length > 18))
-            return message.channel.send(getEmbed_Error("Для разделения необходимо от 4 до 18 игроков!"));
+            return await message.channel.send(getEmbed_Error("Для разделения необходимо от 4 до 18 игроков!"));
         if(!userID.includes(capitansID[1]))
-            return message.channel.send(getEmbed_Error("Второй капитан не присутствует в том же голосовом канале, что и вы!"));
+            return await message.channel.send(getEmbed_Error("Второй капитан не присутствует в том же голосовом канале, что и вы!"));
     } else {
         capitansID = autoNewCapitans;
         userID = autoUserID;
@@ -286,7 +286,6 @@ async function split(robot, message, args, autoNewCapitans = false, autoUserID =
     splitStepNumber = 0;
 
     splitMessage = await message.channel.send(getEmbed_Split(teamPlayers, userID, pickCurrent[splitStepNumber], splitStepNumber, 1, message.author, playersNumber, splitType));
-    const trueFilter = (reaction, user) => {return true;};
     const filter = (reaction, user) => {return ((capitansID[pickCurrent[splitStepNumber]] == user.id) && (emojiOrder.includes(reaction.emoji.toString()))) || (user.bot);};
     splitMessageCollector = await splitMessage.createReactionCollector(trueFilter, {time: 900000});
     for(i = 0; i <= userID.length; i++)
@@ -323,7 +322,7 @@ async function split(robot, message, args, autoNewCapitans = false, autoUserID =
             if(!splitMessage.deleted)
                 await splitMessage.delete();
         } else if(autoNewCapitans)
-            draftTeam(robot, message, autoArgsTeamersDraft);
+            await draftTeam(robot, message, autoArgsTeamersDraft);
         return;
     });
 }
@@ -337,15 +336,14 @@ async function newgameVoting(robot, message, args){
     let newCommandDate = userData.newCooldown;
     let currentDate = new Date();
     if(newCommandDate)
-        if((currentDate.getTime() - newCommandDate.getTime())/1000 < 150)
-            return;
+        if((currentDate.getTime() - newCommandDate.getTime())/1000 < 150) return;
     let newList = await getAllUsersNewCooldown();
     for(newCooldownPlayer of newList)
-        if((currentDate.getTime() - newCooldownPlayer.dataValues.newCooldown.getTime())/1000 < 150 )
-            return;
-        else
-            await updateNewCooldownDate(newCooldownPlayer.dataValues.userid, true);
-
+        if((currentDate.getTime() - newCooldownPlayer.newCooldown.getTime())/1000 < 150 ) return;
+        else{
+            newCooldownPlayer.newCooldown = null;
+            await setUserdata(newCooldownPlayer);
+        }
     let users =  message.member.voice.channel.members;
     let usersID = users.keyArray();
     for(let i = 0; i < usersID.length; i++)
@@ -355,11 +353,10 @@ async function newgameVoting(robot, message, args){
     let usersCount = usersID.length;
     let handler = args.shift();
     let gameType = (handler == "team") ? 1 : 0;
-    if(gameType && ((usersCount % 2 == 1)||(usersCount < 4)))
-        return message.channel.send(getEmbed_Error("Для запуска голосования для Teamers необходимо четное количество игроков, но хотя бы 4."));
-    if((gameType == 0)&&(usersCount < 2))
-        return message.channel.send(getEmbed_Error("Для запуска голосования для FFA необходимо хотя бы 2 игрока."));
-    await updateNewCooldownDate(authorID);
+    if(gameType && ((usersCount % 2 == 1)||(usersCount < 4))) return message.channel.send(getEmbed_Error("Для запуска голосования для Teamers необходимо четное количество игроков, но хотя бы 4."));
+    if((gameType == 0)&&(usersCount < 2)) return message.channel.send(getEmbed_Error("Для запуска голосования для FFA необходимо хотя бы 2 игрока."));
+    userData.newCooldown = currentDate;
+    await setUserdata(userData);
 
     let newGameMessages = deepCopy((gameType == 1) ? messagesTeamers : messagesFFA);
     if(gameType == 1){                                          // Инициализация строчки с капитаном
@@ -447,7 +444,8 @@ async function newgameVoting(robot, message, args){
                         for(j in newGameMessages)
                             if(newGameMessages[j].instance != undefined)
                                 await newGameMessages[j].instance.delete();
-                        await updateNewCooldownDate(authorID, true);
+                        userData.newCooldown = null;
+                        await setUserdata(userData);
                     } else await newGameMessages[filterIndex].instance.reactions.resolve(reaction).users.remove(user);
                 } else if(filterIndex == newGameMessages.length-2){           // Бан по эмодзи
                     let nationEmojies = await newGameMessages[filterIndex].instance.reactions.cache.array();
@@ -506,6 +504,11 @@ async function newgameVoting(robot, message, args){
                                 collectedReactionsCountArray[maxReactionIndex] = 0;
                             }
                             newGameMessages[j].resultString = newGameStringCapitans;
+                        } else {
+                            let collectedReactionsArray = await newGameMessages[j].instance.reactions.cache.array();
+                            let collectedReactionsCountArray = collectedReactionsArray.map(function(element){ return element.count; });
+                            let maxReactionIndex =  collectedReactionsCountArray.indexOf(Math.max(...collectedReactionsCountArray));
+                            newGameMessages[j].resultString = newGameMessages[j].content + " | " + newGameMessages[j].results[maxReactionIndex];
                         }
                         break;
                     case newGameMessages.length-2:
@@ -524,7 +527,8 @@ async function newgameVoting(robot, message, args){
                         break;
                 }
             await message.channel.send(getEmbed_NewGameResult(newGameMessages, message.author));
-            await updateNewCooldownDate(authorID, true);
+            userData.newCooldown = null;
+            await setUserdata(userData);
             gameType == 0 ? await draftFFA(robot, message, argsForDraft, users) : await split(robot, message, args, capitansID, usersSourceID, argsForDraft);
             for(j in newGameMessages)
                 if(newGameMessages[j].instance != undefined)

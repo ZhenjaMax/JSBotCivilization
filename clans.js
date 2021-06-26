@@ -25,34 +25,25 @@ const { getEmbed_Error,
 const { String,
         parseHexColor,
         parseInteger,
-        rgbToHex } = require('./functions.js');
-const { setUserdataMoney,
+        rgbToHex,
+        trueFilter } = require('./functions.js');
+const { setUserdata,
         clanCreate,
 	    clanDelete,
-	    clanGetData,
-	    clanUpdateMoney,
-	    clanUpdateAvatar,
-        clanUpdateLeader,
+	    getClanData,
+        setClanData,
         clanCheckClanName,
-        clanUpdateName,
-        updateUserdataClanID,
-        updateUserdataClanStatus,
         clearAllUserdataClan,
         getUserdata,
         getAllUserdataClan,
-        hasPermissionLevel, 
-        clanUpdateDescription,
-        clanUpdateColor,
-        updateUserdataJoinCooldown,
-        updateUserdataInviteCooldown,
         getAllClans } = require('./database.js');
+const { hasPermissionLevel } = require('./roleManager.js');
 
 async function clanManager(robot, message, args){
-    let clanid = "", clanRating = 0, clanModerators = [];
+    let clanID = "", clanRating = 0, clanModerators = [];
     author = message.author;
     userID = author.id;
     clanData = undefined;
-    const trueFilter = (reaction, user) => { return true; };
     const filterConfirm = (reaction, user) => { return ((userID == user.id) && (reactionList.includes(reaction.emoji.toString()))); };
     const reactionList = ["<:Yes:808418109710794843>", "<:No:808418109319938099>"];
     handler = args.shift();
@@ -69,11 +60,9 @@ async function clanManager(robot, message, args){
                 clanID = userdata.clanid;
             } else
                 clanID = clanID.slice(3, -1);
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
-            clanData = await clanGetData(clanID);
-            if(!clanData)
-                return await message.channel.send(getEmbed_Error("Такого клана не существует!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            clanData = await getClanData(clanID);
+            if(!clanData) return await message.channel.send(getEmbed_Error("Такого клана не существует!"));
             clanMembers = await getAllUserdataClan(clanID);
             clanRating = 0;
             for(member of clanMembers){
@@ -85,31 +74,27 @@ async function clanManager(robot, message, args){
             break;
         case "list":
             clans = await getAllClans();
-            clansList = [], clansLeader = [];
-            for(clanIter of clans)
-                clansList.push(clanIter.dataValues.clanid);
-            for(clanIterID of clansList){
-                clanIterData = await clanGetData(clanIterID);
-                clansLeader.push(clanIterData.leaderid);
+            clansData = [], clansCount = [], clansRating = [];
+            for(clanIter of clans){
+                clansData.push(clanIter.dataValues);
+                clanMembers = await getAllUserdataClan(clanIter.clanid);
+                clanRating = 0;
+                for(member of clanMembers)
+                    clanRating += (member.rating - 1000);
+                clansCount.push(clanMembers.length);
+                clansRating.push(clanRating);
             }
-            await message.channel.send(getEmbed_ClanList(author, clansList, clansLeader));
+            await message.channel.send(getEmbed_ClanList(author, clansData, clansCount, clansRating));
             break;
         case "create":
             userdata = await getUserdata(userID);
-            if(userdata.clanid)
-                return await message.channel.send(getEmbed_Error("Нельзя создать клан, когда вы уже состоите в клане!"));
-            if(userdata.money < clanCreateCost)
-                return await message.channel.send(getEmbed_Error("У вас недостаточно средств!\nНеобходимо {0} 🪙 монет для создания клана.".format(clanCreateCost)));
-            if(message.mentions.members.size + message.mentions.roles.size + message.mentions.channels.size)
-                return await message.channel.send(getEmbed_Error("Вы не можете использовать упоминание игрока, роли или канала в качестве названия клана!"));
+            if(userdata.clanid) return await message.channel.send(getEmbed_Error("Нельзя создать клан, когда вы уже состоите в клане!"));
+            if(userdata.money < clanCreateCost) return await message.channel.send(getEmbed_Error("У вас недостаточно средств!\nНеобходимо {0} 🪙 монет для создания клана.".format(clanCreateCost)));
+            if(message.mentions.members.size + message.mentions.roles.size + message.mentions.channels.size) return await message.channel.send(getEmbed_Error("Вы не можете использовать упоминание игрока, роли или канала в качестве названия клана!"));
             clanName = message.content.slice(13).trim();
-            if(clanName.length == 0)
-                return await message.channel.send(getEmbed_Error("Введите название для клана."));
-            checkClanName = await clanCheckClanName(clanName);
-            if(checkClanName.length != 0)
-                return await message.channel.send(getEmbed_Error("Клан с таким названием уже есть!"));
-            if(clanName.length > clanNameLength)
-                return await message.channel.send(getEmbed_Error("Превышена максимальная длина названия клана.\nМаксимальная длина: 64."));
+            if(clanName.length == 0) return await message.channel.send(getEmbed_Error("Введите название для клана."));
+            if(await clanCheckClanName(clanName)) return await message.channel.send(getEmbed_Error("Клан с таким названием уже есть!"));
+            if(clanName.length > clanNameLength) return await message.channel.send(getEmbed_Error("Превышена максимальная длина названия клана.\nМаксимальная длина: 64."));
             confirmMessage = await message.channel.send(getEmbed_ClanSet(clanName));
             collectorCreate = await confirmMessage.createReactionCollector(trueFilter, {time: 32000}); // +2 секунды на 2 эмодзи
             collectorCreate.on('collect', async (reaction, user) => {
@@ -127,8 +112,7 @@ async function clanManager(robot, message, args){
                     return;
                 }
                 emojies = collected.array();
-                if(emojies[0] == undefined)
-                    return await confirmMessage.delete();
+                if(emojies[0] == undefined) return await confirmMessage.delete();
                 emojiName = emojies.map(function(element){ return element._emoji.toString(); });
                 emojiCount = emojies.map(function(element){ return element.count; });
                 emojiResult = emojiName[emojiCount.indexOf(Math.max(...emojiCount))];
@@ -158,10 +142,11 @@ async function clanManager(robot, message, args){
                     });
                     clanID = newClanRole.id;
                     clanChannelID = newClanChannel.id;
-                    await setUserdataMoney(userID, userdata.money - clanCreateCost);
+                    userdata.money -= clanCreateCost;
+                    userdata.clanid = clanID;
+                    userdata.clanStatus = 2;
+                    await setUserdata(userdata);
                     await clanCreate(userID, clanID, clanName, clanChannelID);
-                    await updateUserdataClanID(userID, clanID);
-                    await updateUserdataClanStatus(userID, 2);
                     await message.member.roles.add(newClanRole);
                     await message.channel.send(getEmbed_ClanCreate(clanID, clanCreateCost, message.author));
                     await confirmMessage.delete();
@@ -178,30 +163,25 @@ async function clanManager(robot, message, args){
             let administrationFlag = false;
             if(hasPermissionLevel(message.member, 3) && (message.mentions.roles.size != 0)){
                 clanRole = message.mentions.roles.first();
-                if(!clanRole)
-                    return await message.channel.send(getEmbed_Error("Введите клан для его удаления."));
+                if(!clanRole) return await message.channel.send(getEmbed_Error("Введите клан для его удаления."));
                 clanID = clanRole.id;
-                clanData = await clanGetData(clanID);
-                if(!clanData)
-                    return await message.channel.send(getEmbed_Error("Введите клан для его удаления."));
+                clanData = await getClanData(clanID);
+                if(!clanData) return await message.channel.send(getEmbed_Error("Введите клан для его удаления."));
                 administrationFlag = true;
             } else {
-                if(!userdata.clanid)
-                    return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+                if(!userdata.clanid) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
                 clanID = userdata.clanid;
                 if(userdata.clanStatus != 2) return await message.channel.send(getEmbed_Error("Вы должны быть владельцем клана, чтобы удалить его!"));
             }
-            clanData = await clanGetData(clanID);
+            clanData = await getClanData(clanID);
             clanColor = clanData.color;
             confirmMessage = await message.channel.send(getEmbed_ClanSet(clanID, true, clanColor));
             collectorDelete = await confirmMessage.createReactionCollector(trueFilter, {time: 32000}); // +2 секунды на 2 эмодзи
             collectorDelete.on('collect', async (reaction, user) => {
                 if(filterConfirm(reaction, user))
                     collectorDelete.stop();
-                else{
-                    if(!user.bot)
-                        await confirmMessage.reactions.resolve(reaction).users.remove(user);
-                }
+                else if(!user.bot)
+                    await confirmMessage.reactions.resolve(reaction).users.remove(user);
             });
             collectorDelete.on('end', async (collected, reason) => {
                 if(reason.toLowerCase() == 'time'){
@@ -210,15 +190,14 @@ async function clanManager(robot, message, args){
                     return;
                 }
                 emojies = collected.array();
-                if(emojies[0] == undefined)
-                    return await confirmMessage.delete();
+                if(emojies[0] == undefined) return await confirmMessage.delete();
                 emojiName = emojies.map(function(element){ return element._emoji.toString(); });
                 emojiCount = emojies.map(function(element){ return element.count; });
                 emojiResult = emojiName[emojiCount.indexOf(Math.max(...emojiCount))];
                 if(emojiResult == reactionList[0]){
+                    clanRole = await message.guild.roles.cache.get(clanData.clanid);
                     await clearAllUserdataClan(clanID);
                     await clanDelete(clanID);
-                    clanRole = await message.guild.roles.cache.get(clanData.clanid);
                     await clanRole.delete();
                     await message.channel.send(getEmbed_ClanDelete(clanData.name, author, clanColor, administrationFlag));
                     await confirmMessage.delete();
@@ -233,59 +212,52 @@ async function clanManager(robot, message, args){
         case "pay":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             value = parseInteger(args.shift());
-            if((value == undefined)||(isNaN(value)))
-                return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
-            if(value <= 0)
-                return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
-            if(userdata.money < value)
-                return await message.channel.send(getEmbed_Error("У вас недостаточно средств!"));
-            clanData = await clanGetData(clanID);
-            await clanUpdateMoney(clanID, clanData.money + value);
-            await setUserdataMoney(userID, userdata.money - value);
-            await message.channel.send(getEmbed_ClanMoney(author, clanID, clanData.money, clanData.money+value, clanData.color));
+            if((value == undefined)||(isNaN(value))) return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
+            if(value <= 0) return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
+            if(userdata.money < value) return await message.channel.send(getEmbed_Error("У вас недостаточно средств!"));
+            clanData = await getClanData(clanID);
+            clanData.money += value;
+            userdata.money -= value;
+            await setClanData(clanData);
+            await setUserdata(userdata);
+            await message.channel.send(getEmbed_ClanMoney(author, clanID, clanData.money-value, clanData.money, clanData.color));
             break;
         case "withdraw":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus == 0) return await message.channel.send(getEmbed_Error("Вы должны быть лидером или модератором клана, чтобы брать деньги из казны!"));
             value = parseInteger(args.shift());
-            if((value == undefined)||(isNaN(value)))
-                return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
-            if(value <= 0)
-                return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
-            clanData = await clanGetData(clanID);
-            if(clanData.money < value)
-                return await message.channel.send(getEmbed_Error("В казне клана недостаточно средств!"));
-            await clanUpdateMoney(clanID, clanData.money - value);
-            await setUserdataMoney(userID, userdata.money + value);
-            await message.channel.send(getEmbed_ClanMoney(author, clanID, clanData.money, clanData.money-value, clanData.color));
+            if((value == undefined)||(isNaN(value))) return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
+            if(value <= 0) return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
+            clanData = await getClanData(clanID);
+            if(clanData.money < value) return await message.channel.send(getEmbed_Error("В казне клана недостаточно средств!"));
+            clanData.money -= value;
+            userdata.money += value;
+            await setClanData(clanData);
+            await setUserdata(userdata);
+            await message.channel.send(getEmbed_ClanMoney(author, clanID, clanData.money+value, clanData.money, clanData.color));
             break;
         case "desc":
         case "description":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus == 0) return await message.channel.send(getEmbed_Error("Вы должны быть лидером или модератором клана, чтобы изменить его описание!"));
             descriptionString = (handler == "desc") ? message.content.slice(11) : message.content.slice(18);
-            if(descriptionString.length > descriptionLength)
-                return await message.channel.send(getEmbed_Error("Превышена максимальная длина описания клана.\nМаксимальная длина: 128."));
-            if(descriptionString.length == 0)
-                descriptionString = null;
-            await clanUpdateDescription(clanID, descriptionString);
-            clanData = await clanGetData(clanID);
+            if(descriptionString.length > descriptionLength) return await message.channel.send(getEmbed_Error("Превышена максимальная длина описания клана.\nМаксимальная длина: 128."));
+            if(descriptionString.length == 0) descriptionString = null;
+            clanData = await getClanData(clanID);
+            clanData.description = descriptionString;
+            await setClanData(clanData);
             await message.channel.send(getEmbed_ClanDescription(author, descriptionString, clanData.color));
             break;
         case "avatar":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus == 0) return await message.channel.send(getEmbed_Error("Вы должны быть лидером или модератором клана, чтобы изменить его изображение!"));
             clanURL = "";
             attachmentObject = await message.attachments.first();
@@ -297,32 +269,29 @@ async function clanManager(robot, message, args){
                     clanURL = embedAttachment.url;
             }
             checkExistURL = args.shift();
-            if((clanURL == "")&&(checkExistURL != undefined))
-                return await message.channel.send(getEmbed_Error("Прикрепите к сообщению изображение или ссылку на него.\nЕсли вы прикрепляете ссылку на GIF-изображение, необходимо, чтобы ссылка заканчивалась на *.gif*."));
-            if(clanURL.length > urlLength)
-                return await message.channel.send(getEmbed_Error("Превышена максимальная длина ссылки вложения.\nМаксимальная длина: 192."));
+            if((clanURL == "")&&(checkExistURL != undefined)) return await message.channel.send(getEmbed_Error("Прикрепите к сообщению изображение или ссылку на него.\nЕсли вы прикрепляете ссылку на GIF-изображение, необходимо, чтобы ссылка заканчивалась на *.gif*."));
+            if(clanURL.length > urlLength) return await message.channel.send(getEmbed_Error("Превышена максимальная длина ссылки вложения.\nМаксимальная длина: 192."));
             if(clanURL == "")
                 clanURL = null;
-            await clanUpdateAvatar(clanID, clanURL);
-            clanData = await clanGetData(clanID);
+            clanData = await getClanData(clanID);
+            clanData.avatarURL = clanURL;
+            await setClanData(clanData);
             await message.channel.send(getEmbed_ClanAvatar(author, clanURL, clanData.color));
             break;
         case "color":
         case "colour":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus == 0) return await message.channel.send(getEmbed_Error("Вы должны быть лидером или модератором клана, чтобы изменить его цвет!"));
-            clanData = await clanGetData(clanID);
-            if(clanData.money < clanChangeColorCost)
-                return await message.channel.send(getEmbed_Error("В казне клана недостаточно средств!\nНеобходимо {0} 🪙 монет для изменения цвета клана.".format(clanChangeColorCost)));
+            clanData = await getClanData(clanID);
+            if(clanData.money < clanChangeColorCost) return await message.channel.send(getEmbed_Error("В казне клана недостаточно средств!\nНеобходимо {0} 🪙 монет для изменения цвета клана.".format(clanChangeColorCost)));
             colorString = args.shift();
-            if(parseHexColor(colorString) != undefined){
+            if(parseHexColor(colorString) != undefined)
                 colorString = colorString.toLowerCase();
-            } else if(colorString == undefined){
+            else if(colorString == undefined)
                 colorString = "#74a5d6";
-            } else if(!isNaN(parseInteger(colorString))){
+            else if(!isNaN(parseInteger(colorString))){
                 color_R = parseInteger(colorString);
                 color_G = parseInteger(args.shift());
                 color_B = parseInteger(args.shift());
@@ -401,10 +370,9 @@ async function clanManager(robot, message, args){
             collector.on('collect', async (reaction, user) => {
                 if(filterConfirm(reaction, user))
                     collector.stop();
-                else{
-                    if(!user.bot)
-                        await confirmMessage.reactions.resolve(reaction).users.remove(user);
-                }
+                else if(!user.bot)
+                    await confirmMessage.reactions.resolve(reaction).users.remove(user);
+                
             });
             collector.on('end', async (collected, reason) => {
                 if(reason.toLowerCase() == 'time'){
@@ -419,9 +387,10 @@ async function clanManager(robot, message, args){
                 emojiCount = emojies.map(function(element){ return element.count; });
                 emojiResult = emojiName[emojiCount.indexOf(Math.max(...emojiCount))];
                 if(emojiResult == reactionList[0]){
-                    clanUpdateColor(clanID, colorString);
+                    clanData.color = colorString;
+                    clanData.money -= clanChangeColorCost;
+                    await setClanData(clanData);
                     await message.guild.roles.cache.get(clanID).edit({color: colorString});
-                    await clanUpdateMoney(clanID, clanData.money - clanChangeColorCost);
                     await message.channel.send(getEmbed_ClanColor(author, colorString, 1));
                     await confirmMessage.delete();
                 } else {
@@ -433,39 +402,30 @@ async function clanManager(robot, message, args){
             for(emoji of reactionList)
                 confirmMessage.react(emoji);
             break;
-            //await message.channel.send(getEmbed_ClanColor(author, colorString, defaultColor));
-            break;
         case "name":
         case "rename":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus != 2) return await message.channel.send(getEmbed_Error("Вы должны быть лидером клана, чтобы изменить его название!"));
-            clanData = await clanGetData(clanID);
-            if(clanData.money < clanRenameCost)
-                return await message.channel.send(getEmbed_Error("В казне клана недостаточно средств!\nНеобходимо {0} 🪙 монет для переименования клана.".format(clanRenameCost)));
+            clanData = await getClanData(clanID);
+            if(clanData.money < clanRenameCost) return await message.channel.send(getEmbed_Error("В казне клана недостаточно средств!\nНеобходимо {0} 🪙 монет для переименования клана.".format(clanRenameCost)));
             clanID = userdata.clanid;
             newClanName = (handler == "rename") ? message.content.slice(13).trim() : message.content.slice(11).trim();
-            if(newClanName.length == 0)
-                return await message.channel.send(getEmbed_Error("Введите название для клана."));
+            if(newClanName.length == 0) return await message.channel.send(getEmbed_Error("Введите название для клана."));
             checkClanName = await clanCheckClanName(newClanName);
-            if(checkClanName.length != 0)
-                return await message.channel.send(getEmbed_Error("Клан с таким названием уже есть!"));
-            if(newClanName.length > clanNameLength)
-                return await message.channel.send(getEmbed_Error("Превышена максимальная длина названия клана.\nМаксимальная длина: 64."));
-            if(message.mentions.members.size + message.mentions.roles.size + message.mentions.channels.size)
-                return await message.channel.send(getEmbed_Error("Вы не можете использовать упоминание игрока, роли или канала в качестве названия клана!"));
+            if(checkClanName.length != 0) return await message.channel.send(getEmbed_Error("Клан с таким названием уже есть!"));
+            if(newClanName.length > clanNameLength) return await message.channel.send(getEmbed_Error("Превышена максимальная длина названия клана.\nМаксимальная длина: 64."));
+            if(message.mentions.members.size + message.mentions.roles.size + message.mentions.channels.size) return await message.channel.send(getEmbed_Error("Вы не можете использовать упоминание игрока, роли или канала в качестве названия клана!"));
             clanName = clanData.name;
             confirmMessage = await message.channel.send(getEmbed_ClanRename(author, clanName, newClanName, clanData.color, 0));
             collector = await confirmMessage.createReactionCollector(trueFilter, {time: 32000}); // +2 секунды на 2 эмодзи
             collector.on('collect', async (reaction, user) => {
                 if(filterConfirm(reaction, user))
                     collector.stop();
-                else{
-                    if(!user.bot)
-                        await confirmMessage.reactions.resolve(reaction).users.remove(user);
-                }
+                else if(!user.bot)
+                    await confirmMessage.reactions.resolve(reaction).users.remove(user);
+                
             });
             collector.on('end', async (collected, reason) => {
                 if(reason.toLowerCase() == 'time'){
@@ -480,13 +440,14 @@ async function clanManager(robot, message, args){
                 emojiCount = emojies.map(function(element){ return element.count; });
                 emojiResult = emojiName[emojiCount.indexOf(Math.max(...emojiCount))];
                 if(emojiResult == reactionList[0]){
-                    await clanUpdateName(clanID, newClanName);
+                    clanData.name = newClanName;
+                    clanData.money -= clanRenameCost;
+                    await setClanData(clanData);
                     clanChannel = await message.guild.channels.cache.get(clanData.textchannelid);
                     await clanChannel.setName('🏰╏клан╏' + newClanName);
                     await clanChannel.setTopic('Канал клана «' + newClanName + '»');
                     clanRole = await message.guild.roles.cache.get(clanID);
                     await clanRole.edit({name: "🛡️ "+newClanName});
-                    await clanUpdateMoney(clanID, clanData.money - clanRenameCost);
                     await message.channel.send(getEmbed_ClanRename(author, clanName, newClanName, clanData.color, 1));
                     await confirmMessage.delete();
                 } else {
@@ -499,17 +460,14 @@ async function clanManager(robot, message, args){
             break;
         case "join":
             userdata = await getUserdata(userID);
-            if(userdata.clanid)
-                return await message.channel.send(getEmbed_Error("Нельзя вступить в клан, когда вы уже состоите в клане!"));
+            if(userdata.clanid) return await message.channel.send(getEmbed_Error("Нельзя вступить в клан, когда вы уже состоите в клане!"));
             clanRole = message.mentions.roles.first();
-            if(!clanRole)
-                return await message.channel.send(getEmbed_Error("Введите название клана, в который вы хотите вступить."));
+            if(!clanRole) return await message.channel.send(getEmbed_Error("Введите название клана, в который вы хотите вступить."));
             clanID = clanRole.id;
-            if((currentDate - userdata.clanJoinCooldown)/1000 < 125)
-                return await message.channel.send(getEmbed_Error("Эту команду можно использовать раз в 2 минуты!"));
-            else
-                await updateUserdataJoinCooldown(userID, currentDate);
-            clanData = await clanGetData(clanID);
+            if((currentDate - userdata.clanJoinCooldown)/1000 < 125) return await message.channel.send(getEmbed_Error("Эту команду можно использовать раз в 2 минуты!"));
+            userdata.clanJoinCooldown = currentDate;
+            await setUserdata(userdata);
+            clanData = await getClanData(clanID);
             confirmMessage = await message.channel.send(getEmbed_ClanJoin(author, clanID, clanData.color, 0));
             clanMembers = await getAllUserdataClan(clanID);
             clanRating = 0;
@@ -527,7 +485,8 @@ async function clanManager(robot, message, args){
                     await confirmMessage.reactions.resolve(reaction).users.remove(user);
             });
             collector.on('end', async (collected, reason) => {
-                await updateUserdataJoinCooldown(userID, null);
+                userdata.clanJoinCooldown = null;
+                await setUserdata(userdata);
                 if(reason.toLowerCase() == 'time'){
                     await message.channel.send(getEmbed_ClanJoin(author, clanID, clanData.color, -2));
                     await confirmMessage.delete();
@@ -542,8 +501,9 @@ async function clanManager(robot, message, args){
                 if(emojiResult == reactionList[0]){
                     clanRole = await message.guild.roles.cache.get(clanID);
                     await message.member.roles.add(clanRole);
-                    updateUserdataClanID(userID, clanID);
-                    updateUserdataClanStatus(userID, 0);
+                    userdata.clanid = clanID;
+                    userdata.clanStatus = 0;
+                    await setUserdata(userdata);
                     await message.channel.send(getEmbed_ClanJoin(author, clanID, clanData.color, 1, moderatorActed));
                     await confirmMessage.delete();
                 } else {
@@ -557,36 +517,31 @@ async function clanManager(robot, message, args){
         case "invite":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!\nЧтобы отправить просьбу на вступление в клан, используйте: !clan join"));
-            if(userdata.clanStatus == 0)
-                return await message.channel.send(getEmbed_Error("Приглашать в клан могут только лидер и модераторы клана!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!\nЧтобы отправить просьбу на вступление в клан, используйте: !clan join"));
+            if(userdata.clanStatus == 0) return await message.channel.send(getEmbed_Error("Приглашать в клан могут только лидер и модераторы клана!"));
             userInvite = await message.mentions.members.first();
-            if(!userInvite)
-                return await message.channel.send(getEmbed_Error("Укажите пользователя для приглашения в клан."));
+            if(!userInvite) return await message.channel.send(getEmbed_Error("Укажите пользователя для приглашения в клан."));
             userInviteID = userInvite.id;
-            if(userInviteID == userID) 
-                return await message.channel.send(getEmbed_Error("Нельзя пригласить в клан самого себя!"));
+            if(userInviteID == userID)  return await message.channel.send(getEmbed_Error("Нельзя пригласить в клан самого себя!"));
             userInviteData = await getUserdata(userInviteID);
-            if(userInviteData.clanid)
-                return await message.channel.send(getEmbed_Error("Игрок уже состоит в другом клане!"));
-            if((currentDate - userdata.clanInviteCooldown)/1000 < 125)
-                return await message.channel.send(getEmbed_Error("Эту команду можно использовать раз в 2 минуты!"));
-            else
-                await updateUserdataInviteCooldown(userID, currentDate);
-            clanData = await clanGetData(clanID);
+            if(userInviteData.clanid) return await message.channel.send(getEmbed_Error("Игрок уже состоит в другом клане!"));
+            if((currentDate - userdata.clanInviteCooldown)/1000 < 125) return await message.channel.send(getEmbed_Error("Эту команду можно использовать раз в 2 минуты!"));
+            userdata.clanInviteCooldown = currentDate;
+            await setUserdata(userdata);
+            clanData = await getClanData(clanID);
             clanColor = clanData.color;
             const filterInviteConfirm = (reaction, user) => { return ((userInviteID == user.id) && (reactionList.includes(reaction.emoji.toString()))); };
             confirmMessage = await message.channel.send(getEmbed_ClanInvite(author, userInviteID, clanID, clanColor, 0));
             collector = await confirmMessage.createReactionCollector(trueFilter, {time: 122000}); // +2 секунды на 2 эмодзи
             collector.on('collect', async (reaction, user) => {
-                if(filterInviteConfirm(reaction, user)){
+                if(filterInviteConfirm(reaction, user))
                     collector.stop();
-                }else if(!user.bot)
+                else if(!user.bot)
                     await confirmMessage.reactions.resolve(reaction).users.remove(user);
             });
             collector.on('end', async (collected, reason) => {
-                await updateUserdataInviteCooldown(userID, null);
+                userdata.clanInviteCooldown = null;
+                await setUserdata(userdata);
                 if(reason.toLowerCase() == 'time'){
                     await message.channel.send(getEmbed_ClanInvite(author, userInviteID, clanID, clanColor, -2));
                     await confirmMessage.delete();
@@ -599,7 +554,8 @@ async function clanManager(robot, message, args){
                 emojiCount = emojies.map(function(element){ return element.count; });
                 emojiResult = emojiName[emojiCount.indexOf(Math.max(...emojiCount))];
                 if(emojiResult == reactionList[0]){
-                    await updateUserdataClanID(userInviteID, clanID);
+                    userInviteData.clanid = clanID;
+                    await setUserdata(userInviteData);
                     clanRole = await message.guild.roles.cache.get(clanID);
                     await userInvite.roles.add(clanRole);
                     await message.channel.send(getEmbed_ClanInvite(author, userInviteID, clanID, clanColor, 1));
@@ -615,35 +571,32 @@ async function clanManager(robot, message, args){
         case "kick":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus == 0) return await message.channel.send(getEmbed_Error("Кикать игроков из клана могут лидер и модераторы клана!"));
             userKick = message.mentions.members.first();
-            if(!userKick)
-                return message.channel.send(getEmbed_Error("Укажите пользователя для кика из клана."));
+            if(!userKick) return message.channel.send(getEmbed_Error("Укажите пользователя для кика из клана."));
             userKickID = userKick.id;
-            if(userKickID == userID) 
-                return message.channel.send(getEmbed_Error("Нельзя кикнуть самого себя!\nЕсли вы хотите клан, используйте: !clan leave"));
+            if(userKickID == userID) return message.channel.send(getEmbed_Error("Нельзя кикнуть самого себя!\nЕсли вы хотите клан, используйте: !clan leave"));
             userKickData = await getUserdata(userKickID);
-            if(userKickData.clanid != clanID)
-                return message.channel.send(getEmbed_Error("Игрок должен состоять в клане, чтобы его кикнуть!"));
-            if(userKickData.clanStatus != 0)
-                return message.channel.send(getEmbed_Error("Игрок должен быть понижен, чтобы его кикнуть!"));
-            clanData = await clanGetData(clanID);
+            if(userKickData.clanid != clanID) return message.channel.send(getEmbed_Error("Игрок должен состоять в клане, чтобы его кикнуть!"));
+            if(userKickData.clanStatus != 0) return message.channel.send(getEmbed_Error("Игрок должен быть понижен, чтобы его кикнуть!"));
+            clanData = await getClanData(clanID);
             clanRole = await message.guild.roles.cache.get(clanID);
-            await updateUserdataClanID(userKickID, null);
+            userKickData.clanid = null;
+            userKickData.clanStatus = 0;
+            await setUserdata(userKickData);
             await userKick.roles.remove(clanRole);
             await message.channel.send(getEmbed_ClanLeave(author, userKickID, clanID, clanData.color));
             break;
         case "leave":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid;
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus == 2) return await message.channel.send(getEmbed_Error("Владелец клана не может покинуть клан!\nУдалите клан или передайте другому игроку, чтобы покинуть его."));
-            clanData = await clanGetData(clanID);
-            await updateUserdataClanID(userID, null);
-            await updateUserdataClanStatus(userID, 0);
+            clanData = await getClanData(clanID);
+            userdata.clanid = null;
+            userdata.clanStatus = 0;
+            await setUserdata(userdata);
             clanRole = await message.guild.roles.cache.get(clanID);
             await message.member.roles.remove(clanRole);
             await message.channel.send(getEmbed_ClanLeave(author, userID, clanID, clanData.color));
@@ -651,28 +604,22 @@ async function clanManager(robot, message, args){
         case "transfer":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus != 2) return await message.channel.send(getEmbed_Error("Вы должны быть лидером клана, чтобы передать его!"));
             userTransfer = message.mentions.users.first();
-            if(!userTransfer)
-                return message.channel.send(getEmbed_Error("Укажите пользователя для передачи клана."));
+            if(!userTransfer) return message.channel.send(getEmbed_Error("Укажите пользователя для передачи клана."));
             userTransferID = userTransfer.id;
-            if(userID == userTransferID) 
-                return message.channel.send(getEmbed_Error("Нельзя передать клан самому себе!"));
+            if(userID == userTransferID) return message.channel.send(getEmbed_Error("Нельзя передать клан самому себе!"));
             userTransferData = await getUserdata(userTransferID);
-            if(userTransferData.clanid != clanID)
-                return message.channel.send(getEmbed_Error("Игрок должен состоять в клане для передачи клана!"));
-            clanData = await clanGetData(clanID);
+            if(userTransferData.clanid != clanID) return message.channel.send(getEmbed_Error("Игрок должен состоять в клане для передачи клана!"));
+            clanData = await getClanData(clanID);
             confirmMessage = await message.channel.send(getEmbed_ClanTransfer(author, clanID, userTransferID, clanData.color, 0));
             collector = await confirmMessage.createReactionCollector(trueFilter, {time: 32000}); // +2 секунды на 2 эмодзи
             collector.on('collect', async (reaction, user) => {
                 if(filterConfirm(reaction, user))
                     collector.stop();
-                else{
-                    if(!user.bot)
-                        await confirmMessage.reactions.resolve(reaction).users.remove(user);
-                }
+                else if(!user.bot)
+                    await confirmMessage.reactions.resolve(reaction).users.remove(user);
             });
             collector.on('end', async (collected, reason) => {
                 if(reason.toLowerCase() == 'time'){
@@ -687,9 +634,11 @@ async function clanManager(robot, message, args){
                 emojiCount = emojies.map(function(element){ return element.count; });
                 emojiResult = emojiName[emojiCount.indexOf(Math.max(...emojiCount))];
                 if(emojiResult == reactionList[0]){
-                    await clanUpdateLeader(clanID, userTransferID);
-                    await updateUserdataClanStatus(userID, 0);
-                    await updateUserdataClanStatus(userTransferID, 2);
+                    clanData.leaderid = userTransferID;
+                    await setClanData(clanData);
+                    userdata.clanStatus = 0;
+                    userTransferData.clanStatus = 2;
+                    await setUserdata([userdata, userTransferData]);
                     await message.channel.send(getEmbed_ClanTransfer(author, clanID, userTransferID, clanData.color, 1));
                     await confirmMessage.delete();
                 } else {
@@ -704,25 +653,18 @@ async function clanManager(robot, message, args){
         case "demote":
             userdata = await getUserdata(userID);
             clanID = userdata.clanid
-            if(!clanID)
-                return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
+            if(!clanID) return await message.channel.send(getEmbed_Error("Вы не состоите в клане!"));
             if(userdata.clanStatus != 2) return await message.channel.send(getEmbed_Error("Вы должны быть лидером клана, чтобы назначать модераторов клана!"));
             changeUser = message.mentions.users.first();
-            if(!changeUser)
-                return await message.channel.send(getEmbed_Error("Укажите пользователя для повышения или понижения!"));
+            if(!changeUser) return await message.channel.send(getEmbed_Error("Укажите пользователя для повышения или понижения!"));
             changeUserID = changeUser.id;
             changeUserdata = await getUserdata(changeUserID);
-            if(changeUserdata.clanid != clanID)
-                return await message.channel.send(getEmbed_Error("Пользователь должен состоять в вашем клане для повышения или понижения!"));
-            if((changeUserdata.clanStatus == 0)&&(handler == "demote"))
-                return await message.channel.send(getEmbed_Error("Нельзя понизить обычного игрока клана!"));
-            if((changeUserdata.clanStatus == 1)&&(handler == "promote"))
-                return await message.channel.send(getEmbed_Error("Нельзя повысить модератора клана!\nЕсли вы хотите сделать игрока владельцем клана, используйте команду: !clan transfer"));
-            if(handler == "promote")
-                updateUserdataClanStatus(changeUserID, 1);
-            else
-                updateUserdataClanStatus(changeUserID, 0);
-            clanData = await clanGetData(clanID);
+            if(changeUserdata.clanid != clanID) return await message.channel.send(getEmbed_Error("Пользователь должен состоять в вашем клане для повышения или понижения!"));
+            if((changeUserdata.clanStatus == 0)&&(handler == "demote")) return await message.channel.send(getEmbed_Error("Нельзя понизить обычного игрока клана!"));
+            if((changeUserdata.clanStatus == 1)&&(handler == "promote")) return await message.channel.send(getEmbed_Error("Нельзя повысить модератора клана!\nЕсли вы хотите сделать игрока владельцем клана, используйте команду: !clan transfer"));
+            changeUserdata.clanStatus = (handler == "promote") ? 1 : 0;
+            await setUserdata(changeUserdata);
+            clanData = await getClanData(clanID);
             await message.channel.send(getEmbed_ClanPromote(author, changeUserID, clanID, clanData.color, (handler == "promote") ? 1 : 0));
             break;
         default:
