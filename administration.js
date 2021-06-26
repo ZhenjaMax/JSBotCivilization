@@ -158,9 +158,11 @@ async function punishmentRemover(){
             if(usersdata[i].banned <= currentData){
                 usersdata[i].banned = null;
                 user = bot.guilds.cache.get(guildID).members.cache.get(String(usersdata[i].userid));
-                await user.roles.remove(roleBanned);
-                await bot.channels.cache.get(chatChannelID).send(getEmbed_Unban(user));
-                await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unban(user));
+                if(user){
+                    await user.roles.remove(roleBanned);
+                    await bot.channels.cache.get(chatChannelID).send(getEmbed_Unban(user));
+                    await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unban(user));
+                }
                 await setUserdata(usersdata[i]);
             } else {
                 if(firstData == null)
@@ -176,9 +178,11 @@ async function punishmentRemover(){
             if(usersdata[i].mutedvoice <= currentData){
                 usersdata[i].mutedvoice = null;
                 user = bot.guilds.cache.get(guildID).members.cache.get(String(usersdata[i].userid));
-                await user.roles.remove(roleMutedVoice);
-                await bot.channels.cache.get(chatChannelID).send(getEmbed_Unmute(user));
-                await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unmute(user));
+                if(user){
+                    await user.roles.remove(roleMutedVoice);
+                    await bot.channels.cache.get(chatChannelID).send(getEmbed_Unmute(user));
+                    await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unmute(user));
+                }
                 await setUserdata(usersdata[i]);
             } else {
                 if(firstData == null)
@@ -194,9 +198,11 @@ async function punishmentRemover(){
             if(usersdata[i].mutedchat <= currentData){
                 usersdata[i].mutedchat = null;
                 user = bot.guilds.cache.get(guildID).members.cache.get(String(usersdata[i].userid));
-                await user.roles.remove(roleMutedChat);
-                await bot.channels.cache.get(chatChannelID).send(getEmbed_Unchat(user));
-                await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unchat(user));
+                if(user){
+                    await user.roles.remove(roleMutedChat);
+                    await bot.channels.cache.get(chatChannelID).send(getEmbed_Unchat(user));
+                    await bot.channels.cache.get(bansReportsChannelID).send(getEmbed_Unchat(user));
+                }
                 await setUserdata(usersdata[i]);
             } else {
                 if(firstData == null)
