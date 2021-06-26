@@ -8,23 +8,18 @@ const { chatChannelID,
         bot,
         schedule,
         botChannelID,
-        DEBUG } = require('./config.js');
+        DEBUG,
+        testChannelID } = require('./config.js');
 const { syncDatabase,
-        checkUserSilent,
-        getAllUserdataBanned,
-        getAllUserdataMuted,
-        getAllUserdataNoChat,
-        hasPermissionLevel,
+        checkUserData,
         saveDatabases } = require('./database.js');
 const { getEmbed_Ready,
-        getEmbed_MemberAdd,
-        getEmbed_UnknownError } = require('./embedMessages.js');
-const { unbanAuto,
-        unmuteAuto,
-        unchatAuto } = require('./administration.js');
-const { updateUsersRatingRole } = require('./rating.js');
+        getEmbed_MemberAdd } = require('./embedMessages.js');
+const { punishmentRemover } = require('./administration.js');
+const { hasPermissionLevel,
+        updateUsersRatingRole,
+        updateUsersWeakRole } = require('./roleManager.js');
 
-administrationJobs = [];
 dbShedule = [];
 lastMessageContent = "";
 lastMessageAuthorID = "";
@@ -36,82 +31,47 @@ bot.on("ready", async () => {
         console.log(bot.user.username + " запустился в DEBUG MODE!");
         return;
     }
-    currentDate = new Date();
-    try{
-        usersBanned = await getAllUserdataBanned();
-        if(usersBanned.length != 0)
-            for(userdata of usersBanned){
-                if(currentDate - userdata.banned >= 0)
-                    unbanAuto(userdata.userid);
-                else
-                    administrationJobs.push(schedule.scheduleJob(userdata.banned, async function (){ await unbanAuto(userdata.userid); }));
-            }
-        usersMuted = await getAllUserdataMuted();
-        if(usersMuted.length != 0)
-            for(userdata of usersMuted){
-                if(currentDate - userdata.mutedvoice >= 0)
-                    unmuteAuto(userdata.userid);
-                else
-                    administrationJobs.push(schedule.scheduleJob(userdata.mutedvoice, async function (){ await unmuteAuto(userdata.userid); }));
-            }
-        usersNochat = await getAllUserdataNoChat();
-        if(usersNochat.length != 0)
-            for(userdata of usersNochat){
-                if(currentDate - userdata.mutedvoice >= 0)
-                    unchatAuto(userdata.userid);
-                else
-                    administrationJobs.push(schedule.scheduleJob(userdata.mutedchat, async function (){ await unchatAuto(userdata.userid); }));
-            }
-        dbShedule.push(schedule.scheduleJob('0 0 0 * * *', function(){saveDatabases();}));
-        dbShedule.push(schedule.scheduleJob('0 0 12 * * *', function(){saveDatabases();}));
-        await bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
-    } catch (errorOnReady) {
-        return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorOnReady"));
-    }
+    await punishmentRemover();
+    dbShedule.push(schedule.scheduleJob("dbSaveMidnight", '0 0 0 * * *', function(){saveDatabases();}));
+    dbShedule.push(schedule.scheduleJob("dbSaveNoon", '0 0 12 * * *', function(){saveDatabases();}));
+    await bot.channels.cache.get(botChannelID).send(getEmbed_Ready());
     console.log(bot.user.username + " запустился!");
 });
 
 bot.on("guildMemberAdd", async (member) => {
-    try{
-        if(DEBUG) return;
-        let isViolation = false;
-        userdata = await checkUserSilent(member.user.id);
-        if(userdata){
-            if(userdata.banned){
-                roleBanned = member.guild.roles.cache.get(roleBannedID);
-                await member.roles.add(roleBanned);
-                isViolation = true;
-            }
-            if(userdata.mutedvoice) {
-                roleMutedVoice = member.guild.roles.cache.get(roleMutedVoiceID);
-                await member.roles.add(roleMutedVoice);
-                isViolation = true;
-            }
-            if(userdata.mutedchat) {
-                roleMutedChat = member.guild.roles.cache.get(roleMutedChatID);
-                await member.roles.add(roleMutedChat);
-                isViolation = true;
-            }
-            if(userdata.winsFFA + userdata.defeatsFFA + userdata.winsTeamers + userdata.defeatsTeamers > 0)
-                await updateUsersRatingRole([userdata.userid]);
-            if(userdata.clanid){
-                clanRole = await member.guild.roles.cache.get(clanID);
-                await member.roles.add(clanRole);
-            }
-            if(!isViolation)
-                bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
-            return;
-        } else {
-            return bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
+    if(DEBUG) return;
+    let isViolation = false;
+    userdata = await checkUserData(member.user.id);
+    if(userdata){
+        if(userdata.banned){
+            roleBanned = member.guild.roles.cache.get(roleBannedID);
+            await member.roles.add(roleBanned);
+            isViolation = true;
         }
-    } catch (errorGuildMemberAdd) {
-        return bot.channels.cache.get(chatChannelID).send(getEmbed_UnknownError("errorGuildMemberAdd"));
+        if(userdata.mutedvoice){
+            roleMutedVoice = member.guild.roles.cache.get(roleMutedVoiceID);
+            await member.roles.add(roleMutedVoice);
+            isViolation = true;
+        }
+        if(userdata.mutedchat){
+            roleMutedChat = member.guild.roles.cache.get(roleMutedChatID);
+            await member.roles.add(roleMutedChat);
+            isViolation = true;
+        }
+        if(userdata.winsFFA + userdata.defeatsFFA + userdata.winsTeamers + userdata.defeatsTeamers > 0)
+            await updateUsersRatingRole([userdata.userid]);
+        if(userdata.clanid){
+            clanRole = member.guild.roles.cache.get(userdata.clanid);
+            await member.roles.add(clanRole);
+        }
+        await updateUsersWeakRole(userdata.userid);
+        if(isViolation) return;
     }
+    await bot.channels.cache.get(chatChannelID).send(getEmbed_MemberAdd(member.user));
 });
 
 bot.on('message', async (message) => {
-    if(message.author.bot || (message.guild == null))
-        return;
+    if(message.author.bot || (message.guild == null)) return;
     if(!message.content.startsWith(prefix)){
         if((message.content == lastMessageContent)&&(lastMessageContent != "")&&(message.author.id == lastMessageAuthorID)&&(message.channel.id == lastMessageChannelID)){
             await message.delete();
@@ -124,23 +84,14 @@ bot.on('message', async (message) => {
     }
 
     if(DEBUG){
-        if(message.channel.id != "716283743047909387")      // test-channel
-            return;
-    } else {
-        if (message.channel.id != botChannelID)
-            if(!hasPermissionLevel(message.member, 2) || (message.channel.id == "716283743047909387"))
-                return;
-    }
+        if(message.channel.id != testChannelID) return;     // test-channel
+    } else if ((message.channel.id != botChannelID) && (!hasPermissionLevel(message.member, 2) || (message.channel.id == testChannelID))) return;
 
     args = message.content.replace(/\n/g, " ").trim().toLowerCase().split(" ").filter(x => x);
     command = args.shift().slice(1);
     for(i in commands)
         if(commands[i].name.includes(command))
-            //try{
-                await commands[i].out(bot, message, args);
-            //} catch (errorOnMessage) {
-            //    return message.channel.send(getEmbed_UnknownError("errorOnMessage"));
-            //}
+            return await commands[i].out(bot, message, args);
 });
 
 bot.login(token);

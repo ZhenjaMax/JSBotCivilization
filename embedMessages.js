@@ -3,15 +3,21 @@ const { String,
         getDateRus, 
         getRandomHexBrightString,
         randomInteger} = require('./functions.js');
-const { roleRanksValue,
-        FFARoleID,
-        teamersRoleID,
-        tableTopRoleID,
-        dotaRoleID,
+const { bot,
+        roleRanksValue,
         clanCreateCost, 
         clanRenameCost,
         clanChangeColorCost,
-        numbersEmoji } = require('./config.js');
+        numbersEmoji, } = require('./config.js');
+
+const thumbnailsURL = [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Antu_flag-red.svg/768px-Antu_flag-red.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Antu_flag-blue.svg/768px-Antu_flag-blue.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Antu_flag-green.svg/768px-Antu_flag-green.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Antu_flag-yellow.svg/768px-Antu_flag-yellow.svg.png",
+    "https://media.discordapp.net/attachments/698295115063492758/837417222732644372/768px-Antu_flag-purple.svg.png?width=599&height=599",
+    "https://cdn.discordapp.com/attachments/698295115063492758/838985443642310666/768px-Antu_flag-grey.svg.png",
+];
 
 function getEmbed_NoVoice() {
     const embedMsg = new Discord.MessageEmbed()
@@ -144,7 +150,8 @@ function getEmbed_Profile(user, userData, author) {
             **Первых мест:** ${userData.firstPlaceFFA}
             **Teamers:** ${userData.winsTeamers} / ${userData.defeatsTeamers}`, inline: true },
             { name: '🏰 Клан:', value: clanString, inline: true },
-            { name: '🔨 Наказание:', value: banString, inline: false },
+            { name: '🔨 Наказание:', value: banString, inline: true },
+            { name: '🐌 Очки слабости:', value: "{0}/15".format(userData.weakPoints), inline: true },
             { name: '📝 Описание:', value: (userData.description != null) ? userData.description : "нет", inline: false },
         )
         .setFooter(author.tag, author.avatarURL())
@@ -157,11 +164,13 @@ function getEmbed_Profile(user, userData, author) {
             "#ff4800", "#ff0000",
             "#ff0054"
         ];
-        let index = 0
+        let index = 0;
         for(index; index < roleRanksValue.length; index++)
             if(userData.rating < roleRanksValue[index])
                 break;
         embedMsg.setColor(colorList[index]);
+        if(userData.avatarURL)
+            embedMsg.setImage(userData.avatarURL);
     return embedMsg;
 }
 
@@ -414,145 +423,23 @@ function getEmbed_RatingChangeCancel(playerStatsArray, gameType, gameIndex, auth
     return embedMsg;
 }
 
-function getEmbed_OldRatingSingleChange(user, ratingBefore, ratingAfter, author, moneyAdd, karmaAdd, teamFlag, multType, gameID, isCancel){
-    userString = ""; ratingString = ""; additionalString = "";
+function getEmbed_Weak(author, user, amount){
     const embedMsg = new Discord.MessageEmbed()
-    if(isCancel){
-        embedMsg
-            .setColor('#00FFF0')
-            .setFooter("Администратор " + author.tag, author.avatarURL())
-            .setTitle("📉 Отмена рейтинга")
-            .addFields(
-                { name: 'Тип игры:', value: "{0}".format(teamFlag ? "Teamers" : "FFA"), inline: true },
-                { name: 'ID игры:', value: "__**#" + gameID + "**__", inline: true},
-                { name: 'Весь рейтинг будет возвращён.', value: "**Все полученные бонусы аннулируются.**", inline: true},
-            );
-            if(teamFlag){       // TEAM сообщение
-                for(i = 0; i < (user.length)/2; i++){
-                    userString += "**{0}**\n".format(user[i].tag);
-                    ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
-                        ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
-                        ratingAfter[i]);
-                    additionalString += "**-{0}** 🪙 |  **-{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
-                }
-                embedMsg.addFields(
-                    { name: 'Никнейм:', value: userString, inline: true },
-                    { name: 'Рейтинг:', value: ratingString, inline: true },
-                    { name: 'Возврат:', value: additionalString, inline: true},
-                );
-                userString = ""; ratingString = ""; additionalString = "";
-                for(i; i < user.length; i++){
-                    userString += "**{0}**\n".format(user[i].tag);
-                    ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
-                        ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
-                        ratingAfter[i]);
-                    additionalString += "**-{0}** 🪙 |  **-{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
-                }
-                embedMsg.addFields(
-                    { name: 'Никнейм:', value: userString, inline: true },
-                    { name: 'Рейтинг:', value: ratingString, inline: true },
-                    { name: 'Возврат:', value: additionalString, inline: true},
-                );
-            } else {    // FFA сообщение
-                for(i in user){
-                    userString += "{0}. **{1}**\n".format(Number(i)+1, user[i].tag);
-                    ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
-                        ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
-                        ratingAfter[i]);
-                    additionalString += "**-{0}** 🪙 |  **-{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
-                }
-                embedMsg
-                    .addFields(
-                    { name: 'Никнейм:', value: userString, inline: true },
-                    { name: 'Рейтинг:', value: ratingString, inline: true },
-                    { name: 'Возврат:', value: additionalString, inline: true},
-                )
-            }
-        return embedMsg;
-
-    }
-    embedMsg
-        .setColor('#00FFF0')
-        .setFooter("Администратор " + author.tag, author.avatarURL())
-        .setTitle("📈 Изменение рейтинга");
-    if(user.length != 1){
-        let victoryTypesFFA = ["CC", "Научная", "Культурная", "Военная", "Религиозная", "Дипломатическая", "По очкам"];
-        embedMsg.addFields(
-            { name: 'Тип игры:', value: "{0}".format(teamFlag ? "Teamers" : "FFA"), inline: true },
-            { name: 'Тип победы:', value: "{0}".format(teamFlag ? "GG" : victoryTypesFFA[multType]), inline: true },
-            { name: 'ID игры:', value: "__**#" + gameID + "**__", inline: true},
-        );
-        if(teamFlag){       // TEAM сообщение
-            for(i = 0; i < (user.length)/2; i++){
-                userString += "**{0}**\n".format(user[i].tag);
-                ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
-                    ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
-                    ratingAfter[i]);
-                additionalString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
-            }
-            embedMsg.addFields(
-                { name: 'Никнейм:', value: userString, inline: true },
-                { name: 'Рейтинг:', value: ratingString, inline: true },
-                { name: 'Бонус:', value: additionalString, inline: true},
-            );
-            userString = ""; ratingString = ""; additionalString = "";
-            for(i; i < user.length; i++){
-                userString += "**{0}**\n".format(user[i].tag);
-                ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
-                    ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
-                    ratingAfter[i]);
-                additionalString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
-            }
-            embedMsg.addFields(
-                { name: 'Никнейм:', value: userString, inline: true },
-                { name: 'Рейтинг:', value: ratingString, inline: true },
-                { name: 'Бонус:', value: additionalString, inline: true},
-            );
-        } else {    // FFA сообщение
-            for(i in user){
-                userString += "{0}. **{1}**\n".format(Number(i)+1, user[i].tag);
-                ratingString += "**{0}** {1} ({2})\n".format(ratingAfter[i]<ratingBefore[i] ? ratingAfter[i]-ratingBefore[i] : "+" + (ratingAfter[i]-ratingBefore[i]), 
-                    ratingAfter[i]<ratingBefore[i] ? "📉" : "📈", 
-                    ratingAfter[i]);
-                additionalString += "**+{0}** 🪙 |  **+{1}** 💧\n".format(moneyAdd[i], karmaAdd[i]);
-            }
-            let victoryThumbnailsURL = [
-                "https://static.wikia.nocookie.net/civilization/images/4/44/Science_Victory_%28Civ6%29.png",
-                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/6/61/Icon_victory_culture.png",
-                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/f/f7/Icon_victory_default.png",
-                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/1/1c/Icon_victory_religious.png",
-                "https://static.wikia.nocookie.net/civilization/images/1/1e/Diplomatic_Victory_%28Civ6%29.png/revision/latest/scale-to-width-down/220?cb=20200430082219",
-                "https://static.wikia.nocookie.net/civ6_gamepedia_en/images/2/27/Icon_victory_score.png"
-            ]
-            embedMsg
-                .setThumbnail(victoryThumbnailsURL[multType-1])
-                .addFields(
-                { name: 'Никнейм:', value: userString, inline: true },
-                { name: 'Рейтинг:', value: ratingString, inline: true },
-                { name: 'Бонус:', value: additionalString, inline: true},
-            )
-        }
-    } else {    // АДМИН СООБЩЕНИЕ
-        embedMsg.addFields(
-            { name: 'Никнейм:', value: user[0].toString(), inline: true },
-            { name: 'Рейтинг:', value: "**{0}** {1} ({2})\n".format(
-                ratingAfter[0]<ratingBefore[0] ? ratingAfter[0]-ratingBefore[0] : "+" + (ratingAfter[0]-ratingBefore[0]), 
-                ratingAfter[0]<ratingBefore[0] ? "📉" : "📈", 
-                ratingAfter[0]), inline: true },
-        );
-    }
+        .setColor("#a84300")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .addField("🐌 {0} получает очки слабости!".format(user.tag),
+                  "{0}Всего {1}/15.".format((amount == 15) ? "😡 " : "", amount));
     return embedMsg;
 }
 
-function getEmbed_LikeOrDislike(author, user, userData, likeIndicator){
+function getEmbed_LikeOrDislike(author, user, amount, likeIndicator){
     const embedMsg = new Discord.MessageEmbed()
         .setColor('#FF4FFF')
         .setFooter(author.tag, author.avatarURL())
-        .setTimestamp();
-    if(likeIndicator > 0)
-        embedMsg.addField("👍 Лайк для {0}!".format(user.tag), "Всего лайков: {0}.".format(userData.likes));
-    else
-        embedMsg.addField("👎 Дизлайк для {0}!".format(user.tag), "Всего дизлайков: {0}".format(userData.dislikes));
+        .setTimestamp()
+        .addField("{0} для {1}!".format(likeIndicator ? "👍 Лайк" : "👎 Дизлайк", user.tag),
+                  "Всего {0}: {1}.".format(likeIndicator ? "лайков" : "дизлайков", amount));
     return embedMsg;
 }
 
@@ -674,12 +561,14 @@ function getEmbed_Remap(){
         Для успешного ремапа необходимо согласие большинства игроков (50%+1 игрок).
         В случае, если предлагается провести ремап повторно, то после каждого ремапа требуется согласие на 1 игрока больше, чем требовалось в предыдущий раз.
         
+        **В случае поражения одного из игроков, ремап и авторемап проводить запрещается.**
+
         Голосование за ремап *в Teamers* проводится **до 8 хода включительно**.
         Для успешного ремапа необходимо согласие **хотя бы** 50% команд.
         Команды могут выразить свое согласие на ремап лишь 1 раз за игру.
         
         Авторемап может произойти *в FFA* **до 15 хода включительно** и гарантирован в случаях, описанных ниже.
-        • Вы не можете основать 3 новых города в радиусе 5 клеток от своего изначального местоположения (без учета других городов, кроме столиц и городов-государств) без изучения дополнительных технологий или социальных институтов.
+        • Вы не можете основать 3 новых города в радиусе 5 клеток от своего изначального местоположения (без учета других городов, кроме столиц и городов-государств) без изучения дополнительных технологий или социальных институтов **на игровых картах Пангея или Континенты**.
         • Были выставлены неправильные настройки, влияющие на игровую карту.
         `);
     return embedMsg;
@@ -1198,60 +1087,38 @@ function getEmbed_ClanPromote(author, userID, clanID, clanColor, promoteStatus){
     return embedMsg;
 }
 
-function getEmbed_ClanList(author, clansID, clansLeader){
+function getEmbed_ClanList(author, clansData, clansCount, clansRating){
     descriptionString = "";
     const embedMsg = new Discord.MessageEmbed()
         .setTitle("🏰 Список кланов сервера")
         .setColor("#5395d7")
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp();
-    if(clansID.length == 0)
+    if(clansData.length == 0)
         embedMsg.setDescription("На сервере нет кланов! 🏰\nВы можете основать первый клан на сервере.");
     else{
-        for(i in clansID)
-            descriptionString += ("**{0}.** <@&{1}> | Лидер 👑 <@!{2}>\n".format(Number(i)+1, clansID[i], clansLeader[i]));
-        embedMsg.setDescription(descriptionString);
+        let clansNameString = "", clansLeader = "", clansStatString = "";
+        for(i in clansData){
+            clansNameString += "<@&{0}>\n".format(clansData[i].clanid);
+            clansLeader += "<@{0}>\n".format(clansData[i].leaderid);
+            clansStatString += "{0} 👥 | {1} {2} | {3} 🪙\n".format(clansCount[i], clansRating[i], (clansRating[i] >= 0) ? "📈" : "📉", clansData[i].money);
+        }
+        embedMsg.addFields(
+            { name: '🛡️ Клан', value: clansNameString, inline: true },
+            { name: '👑 Лидер', value: clansLeader, inline: true },
+            { name: '🛂 Статистика', value: clansStatString, inline: true },
+        );
     }
     return embedMsg;
 }
 
-function getEmbed_FFARole(author, giveRole){
+function getEmbed_TagRolesManager(author, tagRoleData, giveRole){
     const embedMsg = new Discord.MessageEmbed()
-        .setTitle("🗿 Выдача роли FFA")
-        .setColor("#428ff4")
+        .setTitle("{0} Выдача роли {1}".format(tagRoleData.emoji, tagRoleData.name))
+        .setColor(tagRoleData.color)
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
-        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(FFARoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(FFARoleID));
-    return embedMsg;
-}
-
-function getEmbed_TeamersRole(author, giveRole){
-    const embedMsg = new Discord.MessageEmbed()
-        .setTitle("🐲 Выдача роли Teamers")
-        .setColor("#35f00f")
-        .setFooter(author.tag, author.avatarURL())
-        .setTimestamp()
-        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(teamersRoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(teamersRoleID));
-    return embedMsg;
-}
-
-function getEmbed_TableTopRole(author, giveRole){
-    const embedMsg = new Discord.MessageEmbed()
-        .setTitle("🎲 Выдача роли TableTop")
-        .setColor("#21bbc4")
-        .setFooter(author.tag, author.avatarURL())
-        .setTimestamp()
-        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(tableTopRoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(tableTopRoleID));
-    return embedMsg;
-}
-
-function getEmbed_DotaRole(author, giveRole){
-    const embedMsg = new Discord.MessageEmbed()
-        .setTitle("🤬 Выдача роли Dota 2")
-        .setColor("#d82807")
-        .setFooter(author.tag, author.avatarURL())
-        .setTimestamp()
-        .setDescription(giveRole ? "<:Yes:808418109710794843> **Вы получили роль** <@&{0}>**.**".format(dotaRoleID) : "<:No:808418109319938099> **У вас больше нет роли** <@&{0}>**.**".format(dotaRoleID));
+        .setDescription((giveRole ? "<:Yes:808418109710794843> **Вы получили роль** " : "<:No:808418109319938099> **У вас больше нет роли** ") + "<@&{0}>**.**".format(tagRoleData.id))
     return embedMsg;
 }
 
@@ -1299,8 +1166,8 @@ function getEmbed_Split(pickedTeamPlayers, unpickedPlayers, commandIndex, stepNu
 function getEmbed_ProfileDescription(author, descriptionString){
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#5395d7")
-        .setTitle("📝 Изменение описания профиля")
-        .setDescription(descriptionString ? "**Описание профиля успешно изменено.**" : " **Описание профиля успешно сброшено.**")
+        .setTitle("👥 Изменение описания профиля")
+        .setDescription(descriptionString ? "**Описание профиля успешно изменено. 📝**" : "**Описание профиля успешно сброшено. 📝**")
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp();
     return embedMsg;
@@ -1327,6 +1194,104 @@ function getEmbed_NewGameResult(newGameResults, author){
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
         .setDescription(resultString);
+    return embedMsg;
+}
+
+function getEmbed_DraftFFA(bans, errors, draftList, userBotsCount, usernames, userID, author, redraftCounter){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(getRandomHexBrightString())
+        .setAuthor((usernames.length == 1) ?
+            "{0} для 1 игрока".format((redraftCounter) ? "Редрафт #{0}".format(redraftCounter) : "Драфт") :
+            "{0} для {1} игроков".format((redraftCounter) ? "Редрафт #{0}".format(redraftCounter) : "Драфт", playerCount), bot.user.displayAvatarURL())
+        .setTimestamp()
+        .setFooter(author.tag, author.avatarURL());
+
+    let bansString = "";
+    if(bans.length != 0){
+        bansString = "⛔ **Список банов ({0}):**\n".format(bans.length);
+        for(ban of bans)
+            bansString += (ban + "\n");
+        bansString += "\u200B";
+    }
+    if(errors.length != 0){
+        bansString += "⚠️ **Список ошибок ({0}):**\n".format(errors.length);
+        for(errorBan of errors)
+            bansString += (errorBan + ", ");
+        bansString = bansString.slice(0, -2) + "\n";
+    }
+    if(userBotsCount != 0)
+        bansString += "🤖 **В канале {0} {1} {2}.**\nБоты были удалены из драфта."
+            .format(userBotsCount == 1 ? "присутствует" : "присутствуют", 
+                    userBotsCount,
+                    userBotsCount == 1 ? "бот" : "бота");
+    embedMsg.setDescription(bansString);
+
+    for(let i = 0; i < playerCount; i++){
+        let valueField = "**{0}** (<@{1}>)".format(usernames[i], userID[i]);
+        for(let j = 0; j < draftList[i].length; j++)
+            valueField += "\n{0}".format(draftList[i][j]);
+        embedMsg.addField("\u200b", valueField);
+    }
+    return embedMsg;
+}
+
+function getEmbed_DraftTeamHeader(bans, errors, colorHex, teamCount, redraftCounter){
+    let bansString = "";
+    if(bans.length != 0){
+        bansString = "⛔ **Список банов ({0}):**\n".format(bans.length);
+        for(ban of bans)
+            bansString += (ban + "\n");
+    }
+    if(errors.length != 0){
+        bansString += "\n⚠️ **Список ошибок ({0}):**\n".format(errors.length);
+        for(errorBan of errors)
+            bansString += (errorBan + ", ");
+        bansString = bansString.slice(0, -2);
+    }
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(colorHex)
+        .setAuthor("{0} Team для {1} команд".format((redraftCounter) ? "Редрафт #{0}".format(redraftCounter) : "Драфт", teamCount), bot.user.displayAvatarURL())
+        .setDescription(bansString);
+    return embedMsg;
+}
+
+function getEmbed_DraftTeamPage(pageNumber, colorHex, draftList, author){
+    let valueField = "**Команда #{0}**".format(pageNumber+1);
+    for(let i = 0; i < draftList.length; i++)
+        valueField += "\n{0}".format(draftList[i]);
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor(colorHex)
+        .setDescription(valueField)
+        .setThumbnail(thumbnailsURL[pageNumber]);
+    if(author) embedMsg
+        .setTimestamp()
+        .setFooter(author.tag, author.avatarURL());
+    return embedMsg;
+}
+
+function getEmbed_RedraftProposalFFA(playersNeedCount, playersCount, redraftCounter, author, redraftStatus = -1){
+    const embedMsg = new Discord.MessageEmbed()
+        .setTitle("🔄 Редрафт #{0} FFA".format(redraftCounter+1))
+        .setTimestamp()
+        .setFooter(author.tag, author.avatarURL())
+        .setColor("#b0b0b0");
+    switch(redraftStatus){
+        case -1: embedMsg.setDescription("Предлагается провести редрафт.\nДля успешного редрафта необходимо **{0}/{1} голосов** <:Yes:808418109710794843> **\"за\".**\n\n⏰ **На голосование отводится 90 секунд!**".format(playersNeedCount, playersCount)); break;
+        case 0:  embedMsg.setDescription("<:No:808418109319938099> **Редрафт отклонён.**"); break;
+        case 1:  embedMsg.setDescription("<:Yes:808418109710794843> **Редрафт принят.**"); break;
+    }
+    return embedMsg;
+}
+
+function getEmbed_AvatarChange(author, avatarURL){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor("#5395d7")
+        .setTitle("👥 Изменение изображения профиля")
+        .setDescription(avatarURL ? "**Изображение профиля успешно изменено.**  🖼️" : "**Изображение профиля успешно сброшено.**  🖼️")
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp();
+    if(avatarURL)
+        embedMsg.setImage(avatarURL);
     return embedMsg;
 }
 
@@ -1390,14 +1355,17 @@ module.exports = {
     getEmbed_ClanPromote,
     getEmbed_ClanInvite,
     getEmbed_ClanList,
-    getEmbed_FFARole,
-    getEmbed_TeamersRole,
-    getEmbed_TableTopRole,
-    getEmbed_DotaRole,
+    getEmbed_TagRolesManager,
     getEmbed_Split,
     getEmbed_ProfileDescription,
     getEmbed_NewGameResult,
     getEmbed_Tie,
     getEmbed_Sub,
     getEmbed_Leave,
+    getEmbed_DraftFFA,
+    getEmbed_DraftTeamHeader,
+    getEmbed_DraftTeamPage,
+    getEmbed_RedraftProposalFFA,
+    getEmbed_AvatarChange,
+    getEmbed_Weak,
 }

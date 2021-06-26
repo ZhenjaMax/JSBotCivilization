@@ -1,12 +1,27 @@
-const Discord =                             require('discord.js');
+const   Discord = require('discord.js');
 const { randomInteger, 
         getRandomHexBrightString, 
         String, 
-        parseInteger }  =                   require('./functions.js')
-const { getEmbed_NoVoice, 
+        parseInteger,
+        trueFilter }  = require('./functions.js')
+const { getEmbed_NoVoice,
+        getEmbed_Error, 
         getEmbed_WrongNumber, 
-        getEmbed_NotEnoughCivilizations } = require('./embedMessages.js')
-const { indexNationPairArray } = require('./config.js');
+        getEmbed_NotEnoughCivilizations,
+        getEmbed_DraftFFA,
+        getEmbed_DraftTeamHeader,
+        getEmbed_DraftTeamPage,
+        getEmbed_RedraftProposalFFA, } = require('./embedMessages.js')
+const { indexNationPairArray,
+        civilizations } = require('./config.js');
+
+const civilizationValuesArray = Array.from(civilizations.values());
+redraftIsProcessed = false;
+redraftCounter = 0;
+redraftType = -1;
+redraftArgs = [];
+redraftUsers = [];
+redraftBots = 0;
 
 function getDraftFFA(playerCount, civilizationsCount, rawBans) {
     let { civilizations } = require("./config.js");
@@ -44,33 +59,31 @@ function getDraftFFA(playerCount, civilizationsCount, rawBans) {
     return [draftList, bans.sort(), errors.sort()];
 }
 
-function draftFFA(robot, message, args, autoNewUsers = false) {
+async function draftFFA(robot, message, args, autoNewUsers = false, isRedraft = false) {
     civilizationsCountMin = 1;
     civilizationsCountMax = 16;
-    civilizationsCountDefault = 3;
+    civilizationsCountDefault = 4;
     civilizationsCount = args[0];
     rawBans = args.slice(1);
     draftList = []; bans = []; errors = [];
-    bansString = ""; valueField = ""; authorField = "";
     userBotsCount = 0;
 
     let users = [];
     if(autoNewUsers == false){
         voiceChannel = message.member.voice.channel;
-        if(voiceChannel == null)
-            return message.channel.send(getEmbed_NoVoice());
-        users =  message.member.voice.channel.members;          // Особый тип данных
-    } else {
-        users = autoNewUsers;
-    }
+        if(voiceChannel == null) return await message.channel.send(getEmbed_NoVoice());
+        users = message.member.voice.channel.members;          // Особый тип данных
+    } else users = autoNewUsers;
     usernames = users.map(member => member.user.tag);
     userID = users.keyArray();
-    for(let i = 0; i < userID.length; i++)
+
+    for(let i = 0; i < userID.length; i++){
         if(message.guild.members.cache.get(userID[i]).user.bot){
             usernames.splice(i, 1);
             userID.splice(i, 1);
             userBotsCount++;
         }
+    }
     playerCount = userID.length;
 
     civilizationCountParse = parseInteger(civilizationsCount);
@@ -79,57 +92,24 @@ function draftFFA(robot, message, args, autoNewUsers = false) {
             rawBans.push(civilizationsCount);
         civilizationsCount = civilizationsCountDefault;
     }
-    if((civilizationsCount < civilizationsCountMin) || (civilizationsCount > civilizationsCountMax))
-        return message.channel.send(getEmbed_WrongNumber(civilizationsCountMin, civilizationsCountMax));
+    if((civilizationsCount < civilizationsCountMin) || (civilizationsCount > civilizationsCountMax)) return message.channel.send(getEmbed_WrongNumber(civilizationsCountMin, civilizationsCountMax));
 
     let rawBansTemp = [];    
     for(let iter of rawBans)         // Проверка на одинаковые элементы
         if(rawBansTemp.indexOf(iter) == -1) // Ещё нет такого элемента
             rawBansTemp.push(iter);
     rawBans = rawBansTemp;
-
     [draftList, bans, errors] = getDraftFFA(playerCount, civilizationsCount, rawBans);
+    if(draftList.length == 0) return await message.channel.send(getEmbed_NotEnoughCivilizations());
 
-    if(draftList.length == 0)
-        return message.channel.send(getEmbed_NotEnoughCivilizations());
-    authorField = playerCount == 1 ? "Драфт FFA для 1 игрока" : "Драфт FFA для {0} игроков".format(playerCount);
-    const embedMsg = new Discord.MessageEmbed()
-        .setColor(getRandomHexBrightString())
-        .setAuthor(authorField, robot.user.displayAvatarURL());
+    redraftCounter = (isRedraft) ? redraftCounter+1 : 0;
+    redraftType = 0;
+    redraftArgs = [civilizationsCount].concat(rawBans);
+    redraftUsers = users.clone();
+    redraftBots = userBotsCount;
 
-    if(bans.length != 0){
-        bansString = "⛔ **Список банов ({0}):**\n".format(bans.length);
-        for(ban of bans)
-            bansString += (ban + "\n");
-        bansString += "\u200B";
-    }
-    if(errors.length != 0){
-        bansString += "⚠️ **Список ошибок ({0}):**\n".format(errors.length);
-        for(ban of errors)
-            bansString += (ban + ", ");
-        bansString = bansString.slice(0, -2) + "\n";
-    }
-    if(userBotsCount != 0)
-        bansString += "🤖 **В канале {0} {1} {2}.**\nБоты были удалены из драфта."
-            .format(userBotsCount == 1 ? "присутствует" : "присутствуют", 
-                    userBotsCount,
-                    userBotsCount == 1 ? "бот" : "бота");
-    embedMsg.setDescription(bansString);
-
-    for(let i = 0; i < playerCount; i++){
-        valueField = "**{0}** (<@{1}>)".format(usernames[i], userID[i]);
-        for(let j = 0; j < civilizationsCount; j++)
-            valueField += "\n{0}".format(draftList[i][j]);
-        embedMsg.addField("\u200b", valueField);
-    }
-    embedMsg
-        .setTimestamp()
-        .setFooter(message.author.tag, message.author.avatarURL());
-    message.channel.send(embedMsg);
+    await message.channel.send(getEmbed_DraftFFA(bans, errors, draftList, userBotsCount, usernames, userID, message.author, redraftCounter));
 }
-
-let { civilizations } = require("./config.js");
-const civilizationValuesArray = Array.from(civilizations.values());
 
 function getDraftSwapIndexRoutine(draft, indexNationPair){
     indexA = draft.indexOf(civilizationValuesArray[indexNationPair[0]]);
@@ -199,29 +179,20 @@ function getDraftTeam(teamCount, rawBans){
     return [draftList, bans.sort(), errors.sort()];
 }
 
-function draftTeam(robot, message, args) {
+async function draftTeam(robot, message, args, isRedraft = false) {
     let teamCountMin = 2, teamCountMax = 6, teamCountDefault = 2;
     let teamCount = args[0];
     let rawBans = args.slice(1);
     draftList = []; bans = []; errors = [];
-    let bansString = "", valueField = "", authorField = "";
     let colorHex = getRandomHexBrightString()
-    const thumbnailsURL = [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Antu_flag-red.svg/768px-Antu_flag-red.svg.png",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Antu_flag-blue.svg/768px-Antu_flag-blue.svg.png",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Antu_flag-green.svg/768px-Antu_flag-green.svg.png",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Antu_flag-yellow.svg/768px-Antu_flag-yellow.svg.png",
-        "https://media.discordapp.net/attachments/698295115063492758/837417222732644372/768px-Antu_flag-purple.svg.png?width=599&height=599",
-        "https://cdn.discordapp.com/attachments/698295115063492758/838985443642310666/768px-Antu_flag-grey.svg.png",
-    ];
+
     teamCountParse = parseInteger(teamCount);
     if(isNaN(teamCountParse) || (teamCountParse == undefined)){
         if(isNaN(teamCountParse))
             rawBans.push(teamCount);
             teamCount = teamCountDefault;
     }
-    if((teamCount < teamCountMin) || (teamCount > teamCountMax))
-        return message.channel.send(getEmbed_WrongNumber(teamCountMin, teamCountMax));
+    if((teamCount < teamCountMin) || (teamCount > teamCountMax)) return await message.channel.send(getEmbed_WrongNumber(teamCountMin, teamCountMax));
 
     let rawBansTemp = [];    
     for(let iter of rawBans)                // Проверка на одинаковые элементы
@@ -230,47 +201,61 @@ function draftTeam(robot, message, args) {
     rawBans = rawBansTemp;
 
     [draftList, bans, errors] = getDraftTeam(teamCount, rawBans);
+    if(draftList.length == 0) return await message.channel.send(getEmbed_NotEnoughCivilizations());
 
-    if(draftList.length == 0)
-        return message.channel.send(getEmbed_NotEnoughCivilizations());
+    redraftCounter = (isRedraft) ? redraftCounter+1 : 0;
+    redraftType = 1;
+    redraftArgs = [teamCount].concat(rawBans);
 
-    if(bans.length != 0){
-        bansString = "⛔ **Список банов ({0}):**\n".format(bans.length);
-        for(ban of bans)
-            bansString += (ban + "\n");
-    }
-    if(errors.length != 0){
-        bansString += "\n⚠️ **Список ошибок ({0}):**\n".format(errors.length);
-        for(ban of errors)
-            bansString += (ban + ", ");
-        bansString = bansString.slice(0, -2);
-    }
-    authorField = "Драфт Team для {0} команд".format(teamCount);
-    let embedMsg = new Discord.MessageEmbed()
-        .setColor(colorHex)
-        .setAuthor(authorField, robot.user.displayAvatarURL())
-        .setDescription(bansString);
-    message.channel.send(embedMsg);
+    await message.channel.send(getEmbed_DraftTeamHeader(bans, errors, colorHex, teamCount, redraftCounter));
+    for(let i = 0; i < teamCount; i++)
+        await message.channel.send(getEmbed_DraftTeamPage(i, colorHex, draftList[i], (i+1 == teamCount) ? message.author : null))
+}
 
-    for(let i = 0; i < teamCount; i++){
-        embedMsg = new Discord.MessageEmbed()
-            .setColor(colorHex);
-        valueField = "**Команда #{0}**".format(i+1);
-        for(let j = 0; j < draftList[i].length; j++){
-            valueField += "\n{0}".format(draftList[i][j]);
-        }
-        if((i+1) == teamCount)
-            embedMsg
-                .setTimestamp()
-                .setFooter(message.author.tag, message.author.avatarURL());
-        embedMsg
-            .setDescription(valueField)
-            .setThumbnail(thumbnailsURL[i]);
-        message.channel.send(embedMsg);
+async function redraft(robot, message, args){
+    switch(redraftType){
+        case -1: return await message.channel.send(getEmbed_Error("Драфта для проведения редрафта не найдено!"));
+        case 1: return await draftTeam(robot, message, redraftArgs, true);
+        case 0:
+            if(redraftIsProcessed) return await message.channel.send(getEmbed_Error("Голосование о редрафте уже проводится!"));
+            redraftIsProcessed = true;
+            let playersCount = redraftUsers.size - redraftBots;
+            let playersNeedCount = Math.min(Math.ceil((playersCount-1)/2)+1+redraftCounter, playersCount);
+            const reactionList = ["<:Yes:808418109710794843>", "<:No:808418109319938099>"];
+            const filterConfirm = (reaction, user) => { return (user.bot || ( reactionList.includes(reaction.emoji.toString()) && redraftUsers.has(user.id) )) };
+            redraftMessage = await message.channel.send(getEmbed_RedraftProposalFFA(playersNeedCount, playersCount, redraftCounter, message.author, -1));
+
+            redraftCollector = await redraftMessage.createReactionCollector(trueFilter, {time: 92000});
+            redraftCollector.on('collect', async (reaction, user) => {
+                if(filterConfirm(reaction, user)){
+                    let collectedReactionsArray = await redraftMessage.reactions.cache.array();
+                    let collectedReactionsCountArray = collectedReactionsArray.map(function(element){ return element.count; });
+                    if(collectedReactionsCountArray[0] > playersNeedCount)
+                        await redraftCollector.stop();
+                    else if(collectedReactionsCountArray[1] > playersCount-playersNeedCount+1)
+                        await redraftCollector.stop();
+                } else if(!user.bot) await redraftMessage.reactions.resolve(reaction).users.remove(user);
+            });
+            redraftCollector.on('end', async (collected, reason) => {
+                redraftIsProcessed = false;
+                let collectedReactionsArray = await redraftMessage.reactions.cache.array();
+                let collectedReactionsCountArray = collectedReactionsArray.map(function(element){ return element.count; });
+                await redraftMessage.reactions.removeAll();
+                if((reason.toLowerCase() == "time")|| (collectedReactionsCountArray[1]>playersCount-playersNeedCount+1)){
+                    redraftType = -1;
+                    await redraftMessage.edit(getEmbed_RedraftProposalFFA(playersNeedCount, playersCount, redraftCounter, message.author, 0));
+                }else{
+                    await redraftMessage.edit(getEmbed_RedraftProposalFFA(playersNeedCount, playersCount, redraftCounter, message.author, 1));
+                    await draftFFA(robot, message, redraftArgs, redraftUsers, true);
+                }
+            });
+            for(i in reactionList)
+                await redraftMessage.react(reactionList[i]);
     }
 }
 
-module.exports = { 
+module.exports = {
+    redraft,
     draftFFA, 
     draftTeam,
 }

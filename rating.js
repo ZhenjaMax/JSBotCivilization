@@ -1,26 +1,20 @@
 const { parsePlayers,
         parseInteger } = require('./functions.js');
 const { getUserdata,
-        updateUserdataRating,
-        setUserdataMoney,
-        updateUserdataKarma,
-        updateUserdataRatingTyped,
-        updateUserdataGameStats,
-        updateUserdataMultStats,
         databaseRatingRegister,
-        databaseRatingUnregister } = require('./database.js');
+        databaseRatingUnregister, 
+        setUserdata} = require('./database.js');
 const { getEmbed_Error,
         getEmbed_RatingSingleChange,
-        getEmbed_UnknownError,
         getEmbed_RatingChange,
         getEmbed_RatingChangeCancel } = require('./embedMessages.js');
-const { roleRanksID,
-        roleRanksValue,
-        bot,
+const { updateUsersRatingRole,
+        updateUsersWeakRole, } = require('./roleManager.js');
+const { bot,
         guildID,
         FFARoleID,
-        teamersRoleID, } = require('./config.js');
-const { ratingReportsChannelID } = require('./config.js');
+        teamersRoleID,
+        ratingReportsChannelID } = require('./config.js');
 
 const multTypeList = ["science", "culture", "domination", "religious", "diplomatic", "score"];
 const multMultiplier = 1.5;
@@ -53,7 +47,7 @@ async function getPlayerStatsObjectFromData(userdata){
 }
 
 async function getPlayerStatsObjectFromRegistered(ratingObject){
-    let userInstance = await bot.users.fetch(ratingObject.userid);
+    let userInstance = await bot.members.fetch(ratingObject.userid);
     let userdata = await getUserdata(ratingObject.userid);
     return {
         id: userdata.userid,
@@ -83,7 +77,7 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
     return Math.round(K*(S-E));
 }
 
-    function ratingElo(playerStatsArray, teamLength = 1){
+function ratingElo(playerStatsArray, teamLength = 1){
     let teamCount = playerStatsArray.length / teamLength, drating, dratingtyped;
     for(let i = 0; i < teamCount-1; i++)
         for(let j = 0; j < teamLength; j++)
@@ -99,7 +93,13 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
     return playerStatsArray;
 }
 
-    async function ratingHandler(robot, message, args){
+async function updateUsersPlayRole(usersID, gameType){
+    gameRole = bot.guilds.cache.get(guildID).roles.cache.get((gameType) ? teamersRoleID : FFARoleID);
+    for(let i in usersID)
+        await bot.guilds.cache.get(guildID).members.cache.get(usersID[i]).roles.add(gameRole);
+}
+
+async function ratingHandler(robot, message, args){
     let playersID = parsePlayers(message.content);
     let playersCount = playersID.length;
     let handler = args.shift(), multString = "";
@@ -114,9 +114,11 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
             if(playersCount != 1) return await message.channel.send(getEmbed_Error("Для данной команды необходимо ввести одного игрока."));
             let ratingValue = parseInteger(args[1]);
             if(isNaN(ratingValue) || (ratingValue == undefined)) return await message.channel.send(getEmbed_Error("Введите значение рейтинга."));
-            let playerStats = await getPlayerStatsObjectFromData(await getUserdata(playersID[0]));
+            userdata = await getUserdata(playersID[0]);
+            let playerStats = await getPlayerStatsObjectFromData(userdata);
             playerStats.drating = (handler == 'set') ? ratingValue-playerStats.rating : ratingValue;
-            await updateUserdataRating(playerStats.id, playerStats.rating+playerStats.drating);
+            userdata.rating += playerStats.drating;
+            await setUserdata(userdata);
             await message.channel.send(getEmbed_RatingSingleChange(playerStats, message.author));
             await bot.channels.cache.get(ratingReportsChannelID).send(getEmbed_RatingSingleChange(playerStats, message.author));
             await updateUsersRatingRole([playerStats.id]);
@@ -169,7 +171,7 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
                             default:
                                 if(parsePlayers(currentArg)[0] == playerStatsArray[iterIndex].id)
                                     iterIndex++;
-                                else return await message.channel.send(getEmbed_Error("Некорректные данные (см. <#807958245541019680>)!"));
+                                else return await message.channel.send(getEmbed_Error("Некорректные данные о статусе игроков (см. <#807958245541019680>)!"));
                                 break;
                         }
                     }
@@ -213,10 +215,10 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
                     for(i in playerStatsArray)
                         if(multIndex != 0){                                     // Выдача денег и кармы
                             playerStatsArray[i].dkarma = playersCount;
-                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount + 10*playersCount);
+                            playerStatsArray[i].dmoney = Math.max(Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount + 10*playersCount), 0);
                         } else {
                             playerStatsArray[i].dkarma = Math.floor(playersCount/2);
-                            playerStatsArray[i].dmoney = Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount);
+                            playerStatsArray[i].dmoney = Math.max(Math.floor(2*playersCount*playersCount - 3*playerStatsArray[i].dratingtyped/playersCount), 0);
                         }
                     for(i in subPlayerStatsArray){                       // Замены (учёт бонусов)
                         let subIndex = subPlayerStatsArray[i].subID;
@@ -269,21 +271,35 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
                             }
                         }
                     }
-                    let concatPlayerStats = playerStatsArray.concat(subPlayerStatsArray);
-                    for(i in concatPlayerStats){                         // Изменение в базе данных и последующая регистрация
-                        await updateUserdataRating(concatPlayerStats[i].id, concatPlayerStats[i].rating+concatPlayerStats[i].drating);
-                        await updateUserdataRatingTyped(concatPlayerStats[i].id, gameTypeIndex ? concatPlayerStats[i].ratingteam+concatPlayerStats[i].dratingtyped : concatPlayerStats[i].ratingffa+concatPlayerStats[i].dratingtyped, gameTypeIndex);
-                        await setUserdataMoney(concatPlayerStats[i].id, concatPlayerStats[i].money+concatPlayerStats[i].dmoney);
-                        await updateUserdataKarma(concatPlayerStats[i].id, Math.min(concatPlayerStats[i].karma+concatPlayerStats[i].dkarma, 100));
-                        let gameValue = (i==0) ? 2 : ((concatPlayerStats[i].dratingtyped >= 0) ? 1 : -1);
-                        await updateUserdataGameStats(concatPlayerStats[i].id, gameTypeIndex, gameValue);
+                    let concatPlayerStats = playerStatsArray.concat(subPlayerStatsArray);                   
+                    for(let i = 0; i < concatPlayerStats.length; i++){              // Сохранение и регистрация
+                        userdata = await getUserdata(concatPlayerStats[i].id);
+                        userdata.rating += concatPlayerStats[i].drating;
+                        if(gameTypeIndex) userdata.ratingteam += concatPlayerStats[i].dratingtyped;
+                        else userdata.ratingffa += concatPlayerStats[i].dratingtyped;
+                        userdata.money += concatPlayerStats[i].dmoney;
+                        userdata.karma = Math.min(userdata.karma + concatPlayerStats[i].dkarma, 100);
+                        userdata.weakPoints = (concatPlayerStats[i].isLeave) ? userdata.weakPoints : ((multIndex) ? Math.max(userdata.weakPoints-3, 0) : Math.max(userdata.weakPoints-2, 0));
+                        if(i==0){
+                            userdata.firstPlaceFFA++;
+                            switch(multIndex){
+                                case 0: break;
+                                case 1: userdata.multScience    += playerStatsArray.length-1;    break;
+                                case 2: userdata.multCulture    += playerStatsArray.length-1;    break;
+                                case 3: userdata.multDomination += playerStatsArray.length-1;    break;
+                                case 4: userdata.multReligious  += playerStatsArray.length-1;    break;
+                                case 5: userdata.multDiplomatic += playerStatsArray.length-1;    break;
+                                case 6: userdata.multScore      += playerStatsArray.length-1;    break;
+                            }
+                        }
+                        (concatPlayerStats[i].dratingtyped >= 0) ? userdata.winsFFA++ : userdata.defeatsFFA++;
+                        await setUserdata(userdata);
                     }
-                    if(multIndex != 0)                                  // Мультик первому игроку
-                        await updateUserdataMultStats(playerStatsArray[0].id, multIndex, playerStatsArray.length-1)                 // игравшие, заменённые, тип игры, индекс мульта,
-                    let embedMsgInstance = getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, gameTypeIndex ? teamCountInput : 0, multIndex, await databaseRatingRegister(concatPlayerStats, gameTypeIndex, multIndex), message.author);
-                    await message.channel.send(embedMsgInstance)   // +индекс игры, +автор
+                    let embedMsgInstance = getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, (gameTypeIndex) ? teamCountInput : 0, multIndex, await databaseRatingRegister(concatPlayerStats, gameTypeIndex, multIndex), message.author);
+                    await message.channel.send(embedMsgInstance)
                     await bot.channels.cache.get(ratingReportsChannelID).send(embedMsgInstance);
                     await updateUsersRatingRole(concatPlayerStats.map(x => x.id));
+                    await updateUsersPlayRole(concatPlayerStats.map(x => x.id), gameTypeIndex);
                     break;
                 default:
                     return await message.channel.send(getEmbed_Error("Введите корректную подкоманду (см. <#807958245541019680>)."));
@@ -291,30 +307,37 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
             break;
         case 'cancel':
             let gameID = parseInteger(args.shift());
-            if(isNaN(gameID) || (gameID == undefined))
-                return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
-            if(gameID <= 0)
-                return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
+            if(isNaN(gameID) || (gameID == undefined)) return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
+            if(gameID <= 0) return await message.channel.send(getEmbed_Error("Введите натуральное число в качестве ID игры."));
             gameResults = await databaseRatingUnregister(gameID);
-            if(gameResults.length == 0)
-                return await message.channel.send(getEmbed_Error("Игры с таким ID не существует!"));
-            if(gameResults[0].isActive == 0)
-                return await message.channel.send(getEmbed_Error("Игра с таким ID уже была отменена!"));
+            if(gameResults.length == 0) return await message.channel.send(getEmbed_Error("Игры с таким ID не существует!"));
+            if(gameResults[0].isActive == 0) return await message.channel.send(getEmbed_Error("Игра с таким ID уже была отменена!"));
             let concatPlayerStats = [];
             for(i in gameResults)
                 concatPlayerStats.push(await getPlayerStatsObjectFromRegistered(gameResults[i]));
-            gameTypeIndex = gameResults[i].gameType;
-            multIndex = gameResults[i].multType;
+            gameTypeIndex = gameResults[0].gameType;
+            multIndex = gameResults[0].multType;
             for(i in concatPlayerStats){
-                await updateUserdataRating(concatPlayerStats[i].id, concatPlayerStats[i].rating-concatPlayerStats[i].drating);
-                await updateUserdataRatingTyped(concatPlayerStats[i].id, gameTypeIndex ? concatPlayerStats[i].ratingteam-concatPlayerStats[i].dratingtyped : concatPlayerStats[i].ratingffa-concatPlayerStats[i].dratingtyped, gameTypeIndex);
-                await setUserdataMoney(concatPlayerStats[i].id, concatPlayerStats[i].money-concatPlayerStats[i].dmoney);
-                await updateUserdataKarma(concatPlayerStats[i].id, Math.max(concatPlayerStats[i].karma-concatPlayerStats[i].dkarma, 0));
-                let gameValue = (i==0) ? 2 : ((concatPlayerStats[i].dratingtyped >= 0) ? 1 : -1);
-                await updateUserdataGameStats(concatPlayerStats[i].id, gameTypeIndex, gameValue, true);
+                userdata = await getUserdata(concatPlayerStats[i].id);
+                userdata.rating -= concatPlayerStats[i].drating;
+                (gameTypeIndex) ? userdata.ratingteam-=concatPlayerStats[i].dratingtyped : userdata.ratingffa-=concatPlayerStats[i].dratingtyped;
+                userdata.money -= concatPlayerStats[i].dmoney;
+                userdata.karma = Math.max(userdata.karma+concatPlayerStats[i].dkarma, 0);
+                if(i==0){
+                    userdata.firstPlaceFFA--;
+                    switch(multIndex){
+                        case 0: break;
+                        case 1: userdata.multScience    -= playerStatsArray.length-1;    break;
+                        case 2: userdata.multCulture    -= playerStatsArray.length-1;    break;
+                        case 3: userdata.multDomination -= playerStatsArray.length-1;    break;
+                        case 4: userdata.multReligious  -= playerStatsArray.length-1;    break;
+                        case 5: userdata.multDiplomatic -= playerStatsArray.length-1;    break;
+                        case 6: userdata.multScore      -= playerStatsArray.length-1;    break;
+                    }
+                }
+                (concatPlayerStats[i].dratingtyped >= 0) ? userdata.winsFFA-- : userdata.defeatsFFA--;
+                await setUserdata(userdata);
             }
-            if(multIndex != 0)
-                await updateUserdataMultStats(concatPlayerStats[0].id, multIndex, playerStatsArray.length-1, true);
             let embedMsgInstance = getEmbed_RatingChangeCancel(concatPlayerStats, gameTypeIndex, gameID, message.author);
             await message.channel.send(embedMsgInstance);
             await bot.channels.cache.get(ratingReportsChannelID).send(embedMsgInstance);
@@ -325,32 +348,4 @@ function ratingEloPair(ratingA, ratingB, isTie = false){      // A win B
     }
 }
 
-async function updateUsersRatingRole(playersID){
-    for(playerIterID of playersID){
-        userdata = await getUserdata(playerIterID);
-        let ratingList = [userdata.rating];
-        if(userdata.winsFFA + userdata.defeatsFFA > 0) 
-            ratingList.push(userdata.ratingffa);
-        if(userdata.winsTeamers + userdata.defeatsTeamers > 0)
-            ratingList.push(userdata.ratingteam);
-        playerIterRating = Math.max(...ratingList);
-        let index = 0;
-        for(index; index < roleRanksValue.length; index++)
-            if(playerIterRating < roleRanksValue[index])
-                break;
-        let rightRoleID = roleRanksID[index];    // Найден ID роли, который нужно дать memberIter
-        playerIterMember = await bot.guilds.cache.get(guildID).members.cache.get(playerIterID);   // нашли memberIter
-        if(playerIterMember.roles.cache.has(rightRoleID))    // если уже есть
-            continue;                           // next iterID для memberIter
-        for(roleRankIterID of roleRanksID){     // убрать все неправильные роли
-            if(playerIterMember.roles.cache.has(roleRankIterID)){
-                wrongRole = await bot.guilds.cache.get(guildID).roles.cache.get(roleRankIterID);
-                await playerIterMember.roles.remove(wrongRole)
-            }
-        }
-        rightRole = await bot.guilds.cache.get(guildID).roles.cache.get(rightRoleID);
-        await playerIterMember.roles.add(rightRole);
-    }
-}
-
-module.exports = { ratingHandler, updateUsersRatingRole }
+module.exports = { ratingHandler }
