@@ -143,6 +143,13 @@ function isEmptyObject(value){ return Object.keys(value).length === 0 && value.c
 
 const trueFilter = (reaction, user) => { return true; };
 
+function getNextDayString(dateDayBefore, dayCurrent){
+    dateDayBefore.setDate(dateDayBefore.getDate() + 1);
+    diffH = Math.floor(( (dateDayBefore-dayCurrent)  % 86400000) / 3600000);
+    diffMin = Math.floor(( (dateDayBefore-dayCurrent)  % 86400000) / 3600000 / 60000);
+    return "{0}:{1} ч".format(diffH, (diffMin<10) ? "0{0}".format(diffMin) : diffMin);
+}
+
 module.exports = { 
     getRandomHexBrightString, 
     randomInteger, 
@@ -158,4 +165,5 @@ module.exports = {
     deepCopy,
     isEmptyObject,
     trueFilter,
+    getNextDayString,
 }

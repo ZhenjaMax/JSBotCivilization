@@ -138,21 +138,19 @@ function getEmbed_Profile(user, userData, author) {
             banString += `чат заблокирован до: ${getDateRus(userData.mutedchat)}\n`;
     }
     const embedMsg = new Discord.MessageEmbed()
-        .setTitle("👥 Профиль игрока")
+        .setTitle("👥 Профиль игрока {0}".format(user.tag))
         .addFields(
-            { name: 'Никнейм:', value: user.toString(), inline: true },
             { name: '🪙 Деньги:', value: userData.money, inline: true },
             { name: '🎩 Лайки/Дизлайки', value: `👍 ${userData.likes} / ${userData.dislikes} 👎`, inline: true },
             { name: '💧 Карма:', value: userData.karma == 100 ? userData.karma + "  👼" : (userData.karma == 0 ? userData.karma + "  😈" : userData.karma), inline: true },
             { name: '📈 Рейтинг:', value: "Общий: {0}\nFFA: {1}\nTeamers: {2}".format(userData.rating, userData.ratingffa, userData.ratingteam), inline: true },
             { name: '🔎 Статистика игр:', value: 
-            `**FFA:** ${userData.winsFFA} / ${userData.defeatsFFA}
-            **Первых мест:** ${userData.firstPlaceFFA}
-            **Teamers:** ${userData.winsTeamers} / ${userData.defeatsTeamers}`, inline: true },
+            `**FFA:** ${userData.winsFFA + userData.defeatsFFA}
+            **Teamers:** ${userData.winsTeamers + userData.defeatsTeamers}`, inline: true },
             { name: '🏰 Клан:', value: clanString, inline: true },
             { name: '🔨 Наказание:', value: banString, inline: true },
             { name: '🐌 Очки слабости:', value: "{0}/15".format(userData.weakPoints), inline: true },
-            { name: '📝 Описание:', value: (userData.description != null) ? userData.description : "нет", inline: false },
+            { name: '📝 Описание:', value: (userData.description != null) ? userData.description : "нет", inline: true },
         )
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
@@ -392,6 +390,20 @@ function getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, gameType, 
     return embedMsg;
 }
 
+function getEmbed_RatingChangeProposal(playerStatsArray, subPlayerStatsArray, gameType, multType, gameIndex, author, imageURL = null){
+    const embedMsg = getEmbed_RatingChange(playerStatsArray, subPlayerStatsArray, gameType, multType, gameIndex, author);
+    embedMsg
+        .setFooter("Игрок " + author.tag, author.avatarURL())
+        .addFields(
+            { name: 'Возможные действия для игроков:', 
+            value: "<:Yes:808418109710794843> Подтвердить рейтинг.\n<:No:808418109319938099> Оспорить рейтинг." },
+            { name: 'Возможные действия для администрации:', 
+            value: "🔨 Начислить рейтинг.\n🗑️ Удалить сообщение." });
+    if(imageURL)
+        embedMsg.setImage(imageURL);
+    return embedMsg;
+}
+
 function getEmbed_RatingChangeCancel(playerStatsArray, gameType, gameIndex, author){
     let playersString = "", ratingString = "", bonusString = "";
     const embedMsg = new Discord.MessageEmbed()
@@ -423,13 +435,33 @@ function getEmbed_RatingChangeCancel(playerStatsArray, gameType, gameIndex, auth
     return embedMsg;
 }
 
+function getEmbed_RatingProposal(author){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#00FFF0')
+        .setFooter(author.tag, author.avatarURL())
+        .setTimestamp()
+        .setTitle("📈 Изменение рейтинга")
+        .setDescription("**Ваш отчет был добавлен в канал** <#863810318785708092>**.**");
+    return embedMsg;
+}
+
+function getEmbed_RatingProposalConfirmed(author){
+    const embedMsg = new Discord.MessageEmbed()
+        .setColor('#00FFF0')
+        .setFooter("Администратор " + author.tag, author.avatarURL())
+        .setTimestamp()
+        .setTitle("📈 Изменение рейтинга")
+        .setDescription("**Рейтинг был успешно начислен.**");
+    return embedMsg;
+}
+
 function getEmbed_Weak(author, user, amount){
     const embedMsg = new Discord.MessageEmbed()
         .setColor("#a84300")
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
         .addField("🐌 {0} получает очки слабости!".format(user.tag),
-                  "{0}Всего {1}/15.".format((amount == 15) ? "😡 " : "", amount));
+                  "{0}Всего {1}/10.".format((amount == 10) ? "😡 " : "", amount));
     return embedMsg;
 }
 
@@ -1368,4 +1400,7 @@ module.exports = {
     getEmbed_RedraftProposalFFA,
     getEmbed_AvatarChange,
     getEmbed_Weak,
+    getEmbed_RatingChangeProposal,
+    getEmbed_RatingProposal,
+    getEmbed_RatingProposalConfirmed,
 }

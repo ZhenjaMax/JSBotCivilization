@@ -72,6 +72,7 @@ const databaseUsers = databaseUsersSequelize.define('users', {
 	dislikeCooldown:{ type: Sequelize.DATE,		defaultValue: null },
 	newCooldown:	{ type: Sequelize.DATE,		defaultValue: null },
 	proposalCooldown:{type: Sequelize.DATE,		defaultValue: null },
+	lastGameDate:	{ type: Sequelize.DATE,		defaultValue: null },
 
 	clanid:			{ type: Sequelize.STRING },													// ID роли клана
 	clanStatus:		{ type: Sequelize.INTEGER, 	defaultValue: 0,			allowNull: false },	// 0 - игрок, 1 - модератор, 2 - создатель клана
@@ -237,7 +238,7 @@ async function getAllUsersNewCooldown(){
 	});
 }
 
-async function syncDatabase(){
+async function syncDatabases(){
 	databaseUsers.sync({ alter: true });
 	databaseRating.sync({ alter: true });
 	databaseClans.sync({ alter: true });
@@ -275,6 +276,6 @@ module.exports = {
 	getAllUserdataClan,
 	getAllClans,
 
-	syncDatabase,
+	syncDatabases,
 	saveDatabases,
 }

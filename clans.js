@@ -576,7 +576,7 @@ async function clanManager(robot, message, args){
             userKick = message.mentions.members.first();
             if(!userKick) return message.channel.send(getEmbed_Error("Укажите пользователя для кика из клана."));
             userKickID = userKick.id;
-            if(userKickID == userID) return message.channel.send(getEmbed_Error("Нельзя кикнуть самого себя!\nЕсли вы хотите клан, используйте: !clan leave"));
+            if(userKickID == userID) return message.channel.send(getEmbed_Error("Нельзя кикнуть самого себя!\nЕсли вы хотите покинуть клан, используйте: !clan leave"));
             userKickData = await getUserdata(userKickID);
             if(userKickData.clanid != clanID) return message.channel.send(getEmbed_Error("Игрок должен состоять в клане, чтобы его кикнуть!"));
             if(userKickData.clanStatus != 0) return message.channel.send(getEmbed_Error("Игрок должен быть понижен, чтобы его кикнуть!"));

@@ -10,7 +10,7 @@ const { chatChannelID,
         botChannelID,
         DEBUG,
         testChannelID } = require('./config.js');
-const { syncDatabase,
+const { syncDatabases,
         checkUserData,
         saveDatabases } = require('./database.js');
 const { getEmbed_Ready,
@@ -26,7 +26,7 @@ lastMessageAuthorID = "";
 lastMessageChannelID = "";
 
 bot.on("ready", async () => {
-    await syncDatabase();
+    await syncDatabases();
     if(DEBUG){
         console.log(bot.user.username + " запустился в DEBUG MODE!");
         return;
