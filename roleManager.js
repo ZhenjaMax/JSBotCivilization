@@ -2,6 +2,8 @@ const { getUserdata } = require('./database.js');
 const { weakRoles,
         guildID,
         bot,
+        FFARoleID,
+        teamersRoleID,
         roleRanksID,
         roleRanksValue,
         roleAdministratorID,
@@ -10,17 +12,17 @@ const { weakRoles,
 		roleBannedID,
 		ownerID } = require('./config.js');
 
-function hasPermissionLevel(user, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
+function hasPermissionLevel(member, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
 	let currentLevel = 1;
-	if (user.roles.cache.has(roleSupportID))
+	if (member.roles.cache.has(roleSupportID))
 		currentLevel = 2;
-	else if (user.roles.cache.has(roleModeratorID))
+	else if (member.roles.cache.has(roleModeratorID))
 		currentLevel = 3;
-	else if (user.roles.cache.has(roleAdministratorID))
+	else if (member.roles.cache.has(roleAdministratorID))
 		currentLevel = 4;
-	if(user.roles.cache.has(roleBannedID))
+	if(member.roles.cache.has(roleBannedID))
 		currentLevel = 0;
-	if (user.id == ownerID)
+	if (member.id == ownerID)
 		currentLevel = 5;
 	return (level <= currentLevel);
 }
@@ -30,7 +32,7 @@ async function updateUsersWeakRole(playersID){
     if(!Array.isArray(playersID)) playersID = [playersID];
     for(playerIterID of playersID){
         userdata = await getUserdata(playerIterID);
-        let weakLevel = Math.floor(userdata.weakPoints / 3);
+        let weakLevel = Math.floor(userdata.weakPoints / 2);
         playerIterMember = bot.guilds.cache.get(guildID).members.cache.get(playerIterID);
         let wrongRole = null;
         for(roleWeakIterID of weakRoles)     // убрать все неправильные роли
@@ -42,6 +44,12 @@ async function updateUsersWeakRole(playersID){
             if(rightRole) await playerIterMember.roles.add(rightRole)
         }
     }
+}
+
+async function updateUsersPlayRole(usersID, gameType){
+    gameRole = bot.guilds.cache.get(guildID).roles.cache.get((gameType) ? teamersRoleID : FFARoleID);
+    for(let i in usersID)
+        await bot.guilds.cache.get(guildID).members.cache.get(usersID[i]).roles.add(gameRole);
 }
 
 async function updateUsersRatingRole(playersID){
@@ -75,5 +83,6 @@ async function updateUsersRatingRole(playersID){
 module.exports = {
     updateUsersWeakRole,
     hasPermissionLevel,
-    updateUsersRatingRole
+    updateUsersRatingRole,
+    updateUsersPlayRole,
 }

@@ -33,7 +33,8 @@ const { getEmbed_Avatar,
         getEmbed_AvatarChange,
         getEmbed_Weak, } = require('./embedMessages.js');
 const { randomInteger,
-        parseInteger,} = require('./functions.js');
+        parseInteger,
+        getNextDayString, } = require('./functions.js');
 const { getUserdata,
         setUserdata,
         saveDatabases, } = require('./database.js');
@@ -70,10 +71,7 @@ async function leave(robot, message, args)  { await message.channel.send(getEmbe
 async function bias(robot, message, args)   { await message.channel.send(getEmbed_BiasList()); }
 async function coin(robot, message, args)   { await message.channel.send(Math.random() < 0.5 ? getEmbed_Heads(message.author) : getEmbed_Tails(message.author)); }
 async function achievement(robot, message, args)    {  }
-async function rating(robot, message, args){
-    if(!hasPermissionLevel(message.member, 2)) return await message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
-    await ratingHandler(robot, message, args);
-}
+async function rating(robot, message, args) { await ratingHandler(robot, message, args); }
 
 async function save(robot, message, args){
     if(!hasPermissionLevel(message.member, 5)) return await message.channel.send(getEmbed_Error("У вас недостаточно прав для использования этой команды."));
@@ -98,6 +96,8 @@ async function vote(robot, message, args){
     let questionString = message.content.slice(6).trim();
     if(questionString.length == 0)
         return await message.channel.send(getEmbed_Error("Введите вопрос для начала голосования."));
+    if((questionString.toLowerCase() == "redraft") || (questionString.toLowerCase() == "редрафт"))
+        return await redraft(robot, message, args);
     voteMessage = await message.channel.send(getEmbed_Vote(message.author, questionString));
     await voteMessage.react("<:Yes:808418109710794843>");
     await voteMessage.react("<:No:808418109319938099>");
@@ -141,8 +141,8 @@ async function weakPointManager(robot, message, args){
             userdata = await getUserdata(member.id);
             let weakValue = parseInteger(args[1]);
             if(!weakValue && (weakValue !== 0)) weakValue = 1;
-            if(handler == "add") userdata.weakPoints = Math.min(Math.max(weakValue + userdata.weakPoints, 0), 15);
-            if(handler == "set") userdata.weakPoints = Math.min(Math.max(weakValue, 0), 15);
+            if(handler == "add") userdata.weakPoints = Math.min(Math.max(weakValue + userdata.weakPoints, 0), 10);
+            if(handler == "set") userdata.weakPoints = Math.min(Math.max(weakValue, 0), 10);
             await setUserdata(userdata);
             await updateUsersWeakRole(userdata.userid);
             return await message.channel.send(getEmbed_Weak(message.author, member.user, userdata.weakPoints));
@@ -153,7 +153,9 @@ async function weakPointManager(robot, message, args){
 
 async function avatar(robot, message, args){
     let profileURL = "";
-    switch(args.shift().toLowerCase()){
+    let handler = args.shift();
+    if(handler) handler = handler.toLowerCase();
+    switch(handler){
         case "set":
             let attachmentObject = await message.attachments.first();
             if(attachmentObject != undefined)
@@ -188,11 +190,11 @@ async function like(robot, message, args){
     if(isLike > 0){
         if(authorData.likeCooldown)
             if((authorData.likeCooldown.getDate() == currentDate.getDate()) && (authorData.likeCooldown.getMonth() == currentDate.getMonth()))
-                return await message.channel.send(getEmbed_Error("Эту команду можно использовать только 1 раз в день."));
+                return await message.channel.send(getEmbed_Error("Вы уже использовали эту команду сегодня!\nПопробуйте снова через {0}.".format(getNextDayString(authorData.likeCooldown, currentDate))));
     } else {
         if(authorData.dislikeCooldown)
             if((authorData.dislikeCooldown.getDate() == currentDate.getDate()) && (authorData.dislikeCooldown.getMonth() == currentDate.getMonth()))
-                return await message.channel.send(getEmbed_Error("Эту команду можно использовать только 1 раз в день."));
+                return await message.channel.send(getEmbed_Error("Вы уже использовали эту команду сегодня!\nПопробуйте снова через {0}.".format(getNextDayString(authorData.dislikeCooldown, currentDate))));
     }
     let userData = await getUserdata(user.id);
     userData.karma = Math.max(Math.min(userData.karma+isLike, 100), 0);
@@ -258,7 +260,7 @@ async function bonus(robot, message, args){
     let currentDate = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), 0, 0, 0, 0);
     let deltaDays = 1;
     if(bonusDate) deltaDays = Math.floor((currentDate - bonusDate)/(1000*86400));
-    if(deltaDays == 0) return message.channel.send(getEmbed_Error("Попробуйте завтра."));
+    if(deltaDays == 0) return message.channel.send(getEmbed_Error("Вы уже использовали эту команду сегодня!\nПопробуйте снова через {0}.".format(getNextDayString(bonusDate, currentDate))));
 
     const maxStreak = 7;
     let isMaxStreakFlag = (userdata.bonusStreak == maxStreak);
@@ -301,6 +303,7 @@ async function money(robot, message, args){
             author = await message.author;
             member = await message.mentions.members.first();
             if(!member) return await message.channel.send(getEmbed_Error("Укажите пользователя для передачи денег."));
+            if(author.id == member.id) return await message.channel.send(getEmbed_Error("Нельзя переводить деньги самому себе!"));
             sendMoneyValue = parseInteger(args[1]);
             if((sendMoneyValue == undefined) || (isNaN(sendMoneyValue))) return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
             if(sendMoneyValue <= 0) return await message.channel.send(getEmbed_Error("Введите целое значение больше 0 для передачи денег."));
@@ -408,7 +411,7 @@ var commands =
         about: "Подбросить игральную кость"
     },
     {
-        name: ["profile", "p", "user", "stats"],
+        name: ["profile", "p", "user"],
         out: profile,
         about: "Профиль игрока"
     },
