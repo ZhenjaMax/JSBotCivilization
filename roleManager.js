@@ -33,11 +33,7 @@ async function updateUsersWeakRole(playersID){
     if(!Array.isArray(playersID)) playersID = [playersID];
     for(playerIterID of playersID){
         userdata = await getUserdata(playerIterID);
-<<<<<<< Updated upstream
-        let weakLevel = Math.floor(userdata.weakPoints / 2);
-=======
         let weakLevel = Math.floor(userdata.weakPoints / weakPointsPerRole);
->>>>>>> Stashed changes
         playerIterMember = bot.guilds.cache.get(guildID).members.cache.get(playerIterID);
         let wrongRole = null;
         for(roleWeakIterID of weakRoles)     // убрать все неправильные роли

@@ -98,11 +98,7 @@ function ratingElo(playerStatsArray, teamLength = 1){
     return playerStatsArray;
 }
 
-<<<<<<< Updated upstream
-async function ratingPlayerStringHandler(message, args, playerStatsArray, gameTypeIndex, multIndex, teamCountInput){
-=======
 async function ratingPlayerStringHandler(message, args, playerStatsArray, gameTypeIndex, multIndex, teamCountInput, playersID){
->>>>>>> Stashed changes
     let subPlayerStatsArray = [];
     let iterIndex = 0;
     let playersCount = playerStatsArray.length;
@@ -310,11 +306,7 @@ async function ratingHandler(robot, message, args){
                     let playerStatsArray = [];
                     for(let i = 0; i < playersCount; i++)
                         playerStatsArray.push(await getPlayerStatsObjectFromData(await getUserdata(playersID[i])));
-<<<<<<< Updated upstream
-                    let stringHandlerReturnValue = await ratingPlayerStringHandler(message, args, playerStatsArray, gameTypeIndex, multIndex, teamCountInput);
-=======
                     let stringHandlerReturnValue = await ratingPlayerStringHandler(message, args, playerStatsArray, gameTypeIndex, multIndex, teamCountInput, playersID);
->>>>>>> Stashed changes
                     let subPlayerStatsArray = stringHandlerReturnValue[0];
                     let concatPlayerStats = stringHandlerReturnValue[1];
                     if(concatPlayerStats == undefined) return;

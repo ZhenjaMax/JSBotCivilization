@@ -150,11 +150,7 @@ function getEmbed_Profile(user, userData, author) {
             **Teamers:** ${userData.winsTeamers + userData.defeatsTeamers}`, inline: true },
             { name: '🏰 Клан:', value: clanString, inline: true },
             { name: '🔨 Наказание:', value: banString, inline: true },
-<<<<<<< Updated upstream
-            { name: '🐌 Очки слабости:', value: "{0}/15".format(userData.weakPoints), inline: true },
-=======
             { name: '🐌 Очки слабости:', value: "{0}/{1}".format(userData.weakPoints, weakPointsTotal), inline: true },
->>>>>>> Stashed changes
             { name: '📝 Описание:', value: (userData.description != null) ? userData.description : "нет", inline: true },
         )
         .setFooter(author.tag, author.avatarURL())
@@ -466,11 +462,7 @@ function getEmbed_Weak(author, user, amount){
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
         .addField("🐌 {0} получает очки слабости!".format(user.tag),
-<<<<<<< Updated upstream
-                  "{0}Всего {1}/10.".format((amount == 10) ? "😡 " : "", amount));
-=======
                   "{0}Всего {1}/{2}.".format((amount == 1) ? "😡 " : "", amount, weakPointsTotal));
->>>>>>> Stashed changes
     return embedMsg;
 }
 
