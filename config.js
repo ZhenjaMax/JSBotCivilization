@@ -1,4 +1,4 @@
-const DEBUG = 0;
+const DEBUG = 1;
 
 const Discord = require('discord.js');
 const schedule = require('node-schedule');
@@ -196,6 +196,9 @@ const deleteCountMin = 1;
 const deleteCountMax = 10;
 const testChannelID = "716283743047909387";
 
+const weakPointsTotal = 10;
+const weakPointsPerRole = 2;
+
 const weakRoles = [
   "849987641994903563",
   "849987639863017512",
@@ -254,5 +257,7 @@ module.exports = {
 
   schedule,
 
+  weakPointsTotal,
+  weakPointsPerRole,
   weakRoles,
 }

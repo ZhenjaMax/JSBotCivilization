@@ -10,7 +10,8 @@ const { weakRoles,
 		roleModeratorID,
 		roleSupportID,
 		roleBannedID,
-		ownerID } = require('./config.js');
+		ownerID, 
+        weakPointsPerRole} = require('./config.js');
 
 function hasPermissionLevel(member, level){ 	// 0 - бан, 1 - общий, 2 - стажёр, 3 - модератор, 4 - администратор, 5 - владелец.
 	let currentLevel = 1;
@@ -32,7 +33,11 @@ async function updateUsersWeakRole(playersID){
     if(!Array.isArray(playersID)) playersID = [playersID];
     for(playerIterID of playersID){
         userdata = await getUserdata(playerIterID);
+<<<<<<< Updated upstream
         let weakLevel = Math.floor(userdata.weakPoints / 2);
+=======
+        let weakLevel = Math.floor(userdata.weakPoints / weakPointsPerRole);
+>>>>>>> Stashed changes
         playerIterMember = bot.guilds.cache.get(guildID).members.cache.get(playerIterID);
         let wrongRole = null;
         for(roleWeakIterID of weakRoles)     // убрать все неправильные роли

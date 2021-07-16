@@ -53,7 +53,8 @@ const { proposalChannelID,
         descriptionLength,
         deleteCountMin,
         deleteCountMax,
-        urlLength, } = require('./config.js');
+        urlLength,
+        weakPointsTotal, } = require('./config.js');
 const { catImage,
         dogImage } = require('./url.js');
 const { clanManager } = require('./clans.js');
@@ -141,8 +142,13 @@ async function weakPointManager(robot, message, args){
             userdata = await getUserdata(member.id);
             let weakValue = parseInteger(args[1]);
             if(!weakValue && (weakValue !== 0)) weakValue = 1;
+<<<<<<< Updated upstream
             if(handler == "add") userdata.weakPoints = Math.min(Math.max(weakValue + userdata.weakPoints, 0), 10);
             if(handler == "set") userdata.weakPoints = Math.min(Math.max(weakValue, 0), 10);
+=======
+            if(handler == "add") userdata.weakPoints = Math.min(Math.max(weakValue + userdata.weakPoints, 0), weakPointsTotal);
+            if(handler == "set") userdata.weakPoints = Math.min(Math.max(weakValue, 0), weakPointsTotal);
+>>>>>>> Stashed changes
             await setUserdata(userdata);
             await updateUsersWeakRole(userdata.userid);
             return await message.channel.send(getEmbed_Weak(message.author, member.user, userdata.weakPoints));
