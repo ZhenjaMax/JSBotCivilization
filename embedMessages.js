@@ -462,7 +462,7 @@ function getEmbed_Weak(author, user, amount){
         .setFooter(author.tag, author.avatarURL())
         .setTimestamp()
         .addField("🐌 {0} получает очки слабости!".format(user.tag),
-                  "{0}Всего {1}/{2}.".format((amount == 1) ? "😡 " : "", amount, weakPointsTotal));
+                  "{0}Всего {1}/{2}.".format((amount == weakPointsTotal) ? "😡 " : "", amount, weakPointsTotal));
     return embedMsg;
 }
 
